@@ -55,17 +55,19 @@ jobs:
           echo "  脚本行数: $(wc -l < upstream/dev-cleaner.ps1)"
           echo "  README 行数: $(wc -l < upstream/README.md)"
 
-      - name: LLM 汉化
+      - name: LLM 汉化（ps1 + README，任一失败即任务失败）
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
           LLM_MODEL: ${{ vars.LLM_MODEL }}
-          # 备用模型：主模型失败/超时后自动切换（如 agnes-2.0-flash）
+          # 备用模型：主模型失败/超时后自动切换
           LLM_FALLBACK_MODEL: ${{ vars.LLM_FALLBACK_MODEL }}
-          # 最大输出 token 数（agnes 系列支持到 65536）
+          # 最大输出 token 数
           LLM_MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS }}
           # 每个文本段重试轮数：每轮依次尝试 primary -> fallback
           LLM_MAX_ROUNDS: ${{ vars.LLM_MAX_ROUNDS }}
+          # 同一模型单轮内的重试次数（默认 0 = 不重试，每个模型仅尝试一次）
+          LLM_RETRIES: ${{ vars.LLM_RETRIES }}
           # 单次请求超时（秒）
           LLM_TIMEOUT: ${{ vars.LLM_TIMEOUT }}
           # 0 = 不切段整文件一次提交（适合 512K 上下文模型）
@@ -79,10 +81,12 @@ jobs:
           SMTP_TO: ${{ secrets.SMTP_TO }}
           SMTP_USE_TLS: ${{ vars.SMTP_USE_TLS }}
         run: |
+          # ps1 汉化（核心产物，失败即任务失败）
           python scripts/translate.py \
             --input upstream/dev-cleaner.ps1 \
             --output "${TRANSLATED_FILE}"
           # README 汉化，头部声明源代码来源 + 上游仓库 + 本仓库使用说明 how2use.md
+          # （任一汉化失败都会使本步骤失败 -> 任务失败，不发布）
           README_HEADER=$(printf '> **汉化声明**：本 README 由 GitHub Actions 自动汉化自上游仓库 [jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner) 的 `README.md`（上游 ref：`%s`）。\n>\n> - 上游仓库：https://github.com/jemishavasoya/dev-cleaner\n> - 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/%s/README.md\n> - 本仓库（dev-cleaner-zh-cn）使用与配置说明：**[how2use.md](how2use.md)**\n\n---\n' "${UPSTREAM_REF}" "${UPSTREAM_REF}")
           python scripts/translate.py \
             --input upstream/README.md \

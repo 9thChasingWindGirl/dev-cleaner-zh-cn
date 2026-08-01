@@ -75,6 +75,24 @@ Output ONLY the translated Markdown document. Do NOT wrap it in an extra code fe
 HERE_OPEN_TO_CLOSE = {'@"': '"@', "@'": "'@"}
 
 
+def load_system_prompt(prompt_arg, kind):
+    """加载系统提示词：优先 --prompt 指定文件，其次 prompts/translate-<kind>.md，最后内置。
+
+    prompt 文件描述 LLM 如何处理源代码文件（翻译规则等）。
+    """
+    candidates = []
+    if prompt_arg:
+        candidates.append(prompt_arg)
+    candidates.append(os.path.join("prompts", "translate-{}.md".format(kind)))
+    for path in candidates:
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    if kind == "md":
+        return SYSTEM_PROMPT_MD
+    return SYSTEM_PROMPT_PS1
+
+
 def load_config():
     api_key = os.environ.get("LLM_API_KEY") or ""
     base_url = (os.environ.get("LLM_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
@@ -267,13 +285,15 @@ def validate_segment(text, kind, original_text=None):
     return errors
 
 
-def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=3):
+def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=0):
     """翻译一段：每轮依次尝试 primary 模型 -> fallback 模型，共 max_rounds 轮。
 
+    retries 表示同一模型单轮内的重试次数；0 表示不重试（每个模型仅尝试一次）。
     返回通过结构校验的译文；全部轮次均失败则抛出 RuntimeError。
     """
     base_prompt = (
-        "下面是待翻译文档的第 {}/{} 段（按顺序排列）。\n"
+        "以下是源代码文件的实际内容（第 {}/{} 段，按代码顺序排列），"
+        "请基于这段内容本身进行翻译处理（而非文件名或摘要）。\n"
         "请按系统规则翻译这一段，只输出翻译后的这段内容本身，"
         "不要输出任何解释、标题或 Markdown 代码围栏。\n\n"
         "```\n{}\n```"
@@ -281,11 +301,13 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=3)
     models = [cfg["model"]]
     if cfg.get("fallback_model"):
         models.append(cfg["fallback_model"])
+    # 重试 N 次 = 共尝试 1+N 次；retries=0 表示不重试（每个模型仅尝试一次）
+    attempts = 1 + retries
     last_err = None
     for round_no in range(1, cfg["max_rounds"] + 1):
         for model in models:
             last_err = None
-            for attempt in range(1, retries + 1):
+            for attempt in range(1, attempts + 1):
                 user_prompt = base_prompt
                 if last_err:
                     user_prompt += (
@@ -311,12 +333,12 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=3)
                     return cleaned
                 last_err = "; ".join(seg_errors)
                 print(
-                    "[translate] 第 {}/{} 段，模型 {}，校验未通过（{}），重试 {}/{}...".format(
-                        idx, total, model, last_err, attempt, retries
+                    "[translate] 第 {}/{} 段，模型 {}，校验未通过（{}），尝试 {}/{}...".format(
+                        idx, total, model, last_err, attempt, attempts
                     ),
                     file=sys.stderr,
                 )
-                if attempt < retries:
+                if attempt < attempts:
                     time.sleep(2 * attempt)
             print(
                 "[translate] 第 {}/{} 段，模型 {} 失败（第 {} 轮）：{}".format(
@@ -357,10 +379,10 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=3)
     raise RuntimeError(err_msg)
 
 
-def translate_chunk_with_split(chunk_text, idx, total, cfg, system_prompt, kind):
+def translate_chunk_with_split(chunk_text, idx, total, cfg, system_prompt, kind, retries=0):
     """翻译一段；若校验持续失败，将该段二等分后分别翻译再拼接。"""
     try:
-        return translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind)
+        return translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries)
     except RuntimeError as e:
         lines = chunk_text.splitlines()
         if len(lines) < 8:
@@ -370,8 +392,8 @@ def translate_chunk_with_split(chunk_text, idx, total, cfg, system_prompt, kind)
             "[translate] 第 {}/{} 段翻译失败，拆分为两半重试: {}".format(idx, total, e),
             file=sys.stderr,
         )
-        half_a = translate_chunk("\n".join(lines[:mid]), idx, total, cfg, system_prompt, kind)
-        half_b = translate_chunk("\n".join(lines[mid:]), idx, total, cfg, system_prompt, kind)
+        half_a = translate_chunk("\n".join(lines[:mid]), idx, total, cfg, system_prompt, kind, retries)
+        half_b = translate_chunk("\n".join(lines[mid:]), idx, total, cfg, system_prompt, kind, retries)
         return half_a + "\n" + half_b
 
 
@@ -446,8 +468,15 @@ def main():
     ap.add_argument("--input", required=True, help="上游原始文件路径")
     ap.add_argument("--output", required=True, help="汉化后输出路径")
     ap.add_argument("--kind", choices=("ps1", "md"), default="ps1", help="输入类型（默认 ps1）")
+    ap.add_argument("--prompt", default="", help="prompt 文件路径（描述 LLM 如何处理源代码文件）；缺省按 --kind 读取 prompts/translate-<kind>.md，再缺省用内置提示词")
     ap.add_argument("--header", default="", help="插入到输出文件头部的声明文本（来源说明）")
     ap.add_argument("--mock", action="store_true", help="不调用 API，用占位中文测试流水线")
+    ap.add_argument(
+        "--retries",
+        type=int,
+        default=int(os.environ.get("LLM_RETRIES") or "0"),
+        help="同一模型单轮内的重试次数（默认 0 = 不重试，每个模型仅尝试一次；可用环境变量 LLM_RETRIES 覆盖）",
+    )
     args = ap.parse_args()
 
     with open(args.input, "r", encoding="utf-8-sig", newline="") as f:
@@ -458,7 +487,7 @@ def main():
         print("[translate] mock 模式，未调用 LLM", file=sys.stderr)
     else:
         cfg = load_config()
-        system_prompt = SYSTEM_PROMPT_MD if args.kind == "md" else SYSTEM_PROMPT_PS1
+        system_prompt = load_system_prompt(args.prompt, args.kind)
         if cfg["chunk_lines"] <= 0:
             chunks = [original.rstrip("\n")]
         else:
@@ -473,7 +502,7 @@ def main():
         parts = []
         for i, chunk in enumerate(chunks, 1):
             print("[translate] 翻译第 {}/{} 段...".format(i, total), file=sys.stderr)
-            parts.append(translate_chunk_with_split(chunk, i, total, cfg, system_prompt, args.kind))
+            parts.append(translate_chunk_with_split(chunk, i, total, cfg, system_prompt, args.kind, args.retries))
         translated = "\n".join(parts)
         translated = translated.strip() + "\n"
 
