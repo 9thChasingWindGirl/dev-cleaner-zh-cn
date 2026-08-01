@@ -27,7 +27,8 @@ env:
   UPSTREAM_REF: ${{ inputs.upstream_ref || 'ec1037bbcf8e64614301dfb2020b4b8f4ee7289d' }}
   UPSTREAM_FILE: ${{ inputs.upstream_file || 'dev-cleaner.ps1' }}
   TRANSLATED_FILE: dev-cleaner.zh-CN.ps1
-  TRANSLATED_README: README.zh-CN.md
+  # 汉化版 README 直接作为仓库根 README.md（头部含来源声明 + how2use.md 指引）
+  TRANSLATED_README: README.md
 
 jobs:
   sync-and-release:
@@ -59,12 +60,30 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
           LLM_MODEL: ${{ vars.LLM_MODEL }}
+          # 备用模型：主模型失败/超时后自动切换（如 agnes-2.0-flash）
+          LLM_FALLBACK_MODEL: ${{ vars.LLM_FALLBACK_MODEL }}
+          # 最大输出 token 数（agnes 系列支持到 65536）
+          LLM_MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS }}
+          # 每个文本段重试轮数：每轮依次尝试 primary -> fallback
+          LLM_MAX_ROUNDS: ${{ vars.LLM_MAX_ROUNDS }}
+          # 单次请求超时（秒）
+          LLM_TIMEOUT: ${{ vars.LLM_TIMEOUT }}
+          # 0 = 不切段整文件一次提交（适合 512K 上下文模型）
+          LLM_CHUNK_LINES: ${{ vars.LLM_CHUNK_LINES }}
+          # SMTP 告警（轮次耗尽仍未成功时发邮件通知）；账号与收件人属隐私，从 Secrets 读取
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          SMTP_TO: ${{ secrets.SMTP_TO }}
+          SMTP_USE_TLS: ${{ vars.SMTP_USE_TLS }}
         run: |
           python scripts/translate.py \
             --input upstream/dev-cleaner.ps1 \
             --output "${TRANSLATED_FILE}"
-          # README 汉化，并在头部声明源代码来源
-          README_HEADER=$(printf '> **来源声明**：本文件由 GitHub Actions 自动汉化自上游仓库 [jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner) 的 `README.md`（commit `%s`）。\n>\n> 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/%s/README.md\n' "${UPSTREAM_REF}" "${UPSTREAM_REF}")
+          # README 汉化，头部声明源代码来源 + 上游仓库 + 本仓库使用说明 how2use.md
+          README_HEADER=$(printf '> **汉化声明**：本 README 由 GitHub Actions 自动汉化自上游仓库 [jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner) 的 `README.md`（commit `%s`）。\n>\n> - 上游仓库：https://github.com/jemishavasoya/dev-cleaner\n> - 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/%s/README.md\n> - 本仓库（dev-cleaner-zh-cn）使用与配置说明：**[how2use.md](how2use.md)**\n\n---\n' "${UPSTREAM_REF}" "${UPSTREAM_REF}")
           python scripts/translate.py \
             --input upstream/README.md \
             --output "${TRANSLATED_README}" \
@@ -128,11 +147,11 @@ jobs:
 
             ### 附件
             - `dev-cleaner.zh-CN.ps1` — 汉化版脚本（UTF-8 BOM，适用于 Windows PowerShell 5.1+）
-            - `README.zh-CN.md` — 汉化版说明文档（头部含源代码来源声明）
+            - `README.md` — 汉化版说明文档（即仓库根 README，头部含来源声明与使用说明指引）
             - `upstream/dev-cleaner.ps1` — 上游原始脚本（供对照）
             - `upstream/README.md` — 上游原始说明文档（供对照）
           files: |
             dev-cleaner.zh-CN.ps1
-            README.zh-CN.md
+            README.md
             upstream/dev-cleaner.ps1
             upstream/README.md
