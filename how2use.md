@@ -88,7 +88,7 @@ workflow 已声明 `permissions: contents: write`，提交汉化文件和发布 
 
 仓库 **Actions** 页面选择 **同步上游并发布汉化版** → **Run workflow**，可指定：
 
-- `upstream_ref`：上游 ref（commit SHA / tag / 分支名），默认固定在上游 commit `ec1037bbcf8e64614301dfb2020b4b8f4ee7289d`
+- `upstream_ref`：上游 ref（分支名 / tag / commit SHA），默认 `main`（跟随上游最新代码）
 - `upstream_file`：上游仓库内要汉化的文件路径，默认 `dev-cleaner.ps1`
 
 ## 工作流程说明
@@ -133,8 +133,10 @@ python scripts/translate.py --input upstream/README.md --output /tmp/out.md --ki
 
 ## 修改上游
 
-默认锁定在上游 commit `ec1037bbcf8e64614301dfb2020b4b8f4ee7289d`（稳定可复现）。
-如需跟随上游最新代码，手动运行时把 `upstream_ref` 填为 `main` 即可；若想长期跟随，把 `.github/workflows/sync-upstream.yml` 中 `UPSTREAM_REF` 的默认值改为 `main`。
+`upstream_ref` 支持指定分支名 / tag / commit SHA，默认值为 `main`（跟随上游最新代码，稳定可复现）：
+- 想固定在某次提交，可填该 commit SHA，如 `ec1037bbcf8e64614301dfb2020b4b8f4ee7289d`；
+- 想固定在某次发布，可填 tag 名；
+- 默认 `main` 即为跟随上游 `main` 分支的最新代码。
 
 ## 目录结构
 

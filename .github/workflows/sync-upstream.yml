@@ -9,7 +9,7 @@ name: 同步上游并发布汉化版
       upstream_ref:
         description: '上游 ref（commit SHA / tag / 分支名）'
         required: false
-        default: 'ec1037bbcf8e64614301dfb2020b4b8f4ee7289d'
+        default: 'main'
       upstream_file:
         description: '上游仓库内要汉化的文件路径'
         required: false
@@ -24,7 +24,7 @@ concurrency:
 
 env:
   UPSTREAM_REPO: jemishavasoya/dev-cleaner
-  UPSTREAM_REF: ${{ inputs.upstream_ref || 'ec1037bbcf8e64614301dfb2020b4b8f4ee7289d' }}
+  UPSTREAM_REF: ${{ inputs.upstream_ref || 'main' }}
   UPSTREAM_FILE: ${{ inputs.upstream_file || 'dev-cleaner.ps1' }}
   TRANSLATED_FILE: dev-cleaner.zh-CN.ps1
   # 汉化版 README 直接作为仓库根 README.md（头部含来源声明 + how2use.md 指引）
@@ -83,7 +83,7 @@ jobs:
             --input upstream/dev-cleaner.ps1 \
             --output "${TRANSLATED_FILE}"
           # README 汉化，头部声明源代码来源 + 上游仓库 + 本仓库使用说明 how2use.md
-          README_HEADER=$(printf '> **汉化声明**：本 README 由 GitHub Actions 自动汉化自上游仓库 [jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner) 的 `README.md`（commit `%s`）。\n>\n> - 上游仓库：https://github.com/jemishavasoya/dev-cleaner\n> - 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/%s/README.md\n> - 本仓库（dev-cleaner-zh-cn）使用与配置说明：**[how2use.md](how2use.md)**\n\n---\n' "${UPSTREAM_REF}" "${UPSTREAM_REF}")
+          README_HEADER=$(printf '> **汉化声明**：本 README 由 GitHub Actions 自动汉化自上游仓库 [jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner) 的 `README.md`（上游 ref：`%s`）。\n>\n> - 上游仓库：https://github.com/jemishavasoya/dev-cleaner\n> - 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/%s/README.md\n> - 本仓库（dev-cleaner-zh-cn）使用与配置说明：**[how2use.md](how2use.md)**\n\n---\n' "${UPSTREAM_REF}" "${UPSTREAM_REF}")
           python scripts/translate.py \
             --input upstream/README.md \
             --output "${TRANSLATED_README}" \
@@ -141,7 +141,7 @@ jobs:
             ## Dev Cleaner 汉化版 v${{ steps.version.outputs.version }}
 
             - 上游仓库：[jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner)
-            - 上游 commit：[${{ env.UPSTREAM_REF }}](https://github.com/${{ env.UPSTREAM_REPO }}/commit/${{ env.UPSTREAM_REF }})
+            - 上游 ref：[${{ env.UPSTREAM_REF }}](https://github.com/${{ env.UPSTREAM_REPO }}/tree/${{ env.UPSTREAM_REF }})
             - 汉化时间：${{ steps.version.outputs.date }}
             - 说明：由 GitHub Actions 自动同步上游并调用 LLM 汉化；用户可见文本已译为简体中文，代码逻辑与上游保持一致。
 

@@ -223,7 +223,26 @@ def strip_fences(text):
     return text
 
 
-def validate_segment(text, kind):
+def has_translatable_prose(text):
+    """判断 markdown 段是否含可翻译的正文（排除代码块、表格、链接、HTML 等）。"""
+    in_code = False
+    for ln in text.splitlines():
+        s = ln.strip()
+        if s.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        if not s:
+            continue
+        if s.startswith(("#", ">", "|", "-", "*", "<", "!", "[", "`")):
+            continue
+        if re.search(r"[A-Za-z\u4e00-\u9fff]", s):
+            return True
+    return False
+
+
+def validate_segment(text, kind, original_text=None):
     """逐段结构校验：失败返回错误列表。"""
     errors = []
     if not text.strip():
@@ -235,6 +254,16 @@ def validate_segment(text, kind):
             errors.append("段结尾是未闭合的代码围栏，可能被截断")
         if "```" in text:
             errors.append("段内残留 Markdown 代码围栏")
+    else:
+        # md：正文段应含中文；行数远少于原文视为截断/无效输出
+        if original_text and has_translatable_prose(original_text) \
+                and not re.search(r"[\u4e00-\u9fff]", text):
+            errors.append("段内未检测到中文字符，可能未翻译或输出了无关内容")
+        if original_text:
+            lo = len(original_text.splitlines())
+            lt = len(text.splitlines())
+            if lo > 0 and lt / lo < 0.5:
+                errors.append("段行数异常: 原文 {} 行, 译文 {} 行".format(lo, lt))
     return errors
 
 
@@ -277,7 +306,7 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=3)
                     continue
                 # 剥离模型可能包裹的代码围栏，再做逐段结构校验
                 cleaned = strip_fences(raw or "")
-                seg_errors = validate_segment(cleaned, kind)
+                seg_errors = validate_segment(cleaned, kind, original_text=chunk_text)
                 if not seg_errors:
                     return cleaned
                 last_err = "; ".join(seg_errors)
@@ -310,7 +339,7 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=3)
             idx, cfg["max_rounds"], " -> ".join(models), last_err
         )
         + ". 若反复出现花括号不匹配/截断，请尝试：1) 调大 LLM_MAX_TOKENS（如 16384）；"
-        "2) 更换更稳定的模型（如 gpt-4o-mini / deepseek-chat）。"
+        "2) 更换更稳定的主/备用模型。"
     )
     send_smtp_alert(
         cfg,
@@ -454,7 +483,7 @@ def main():
             print("[validate] FAIL: {}".format(e), file=sys.stderr)
         print(
             "[validate] 建议：1) 调大 LLM_MAX_TOKENS（如 16384）；"
-            "2) 更换更稳定的模型（如 gpt-4o-mini / deepseek-chat）；"
+            "2) 更换更稳定的主/备用模型；"
             "3) 重新运行 workflow 观察段级校验输出。",
             file=sys.stderr,
         )
