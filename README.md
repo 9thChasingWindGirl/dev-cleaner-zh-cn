@@ -2,7 +2,7 @@
 >
 > - 上游仓库：https://github.com/jemishavasoya/dev-cleaner
 > - 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/main/README.md
-> - 本仓库（dev-cleaner-zh-cn）使用与配置说明：**[how2use.md](how2use.md)**
+> - 本仓库（dev-cleaner-zh-cn）使用与配置说明：**[how2use](https://github.com/9thChasingWindGirl/dev-cleaner-zh-cn/wiki/how2use)**
 
 ---
 
