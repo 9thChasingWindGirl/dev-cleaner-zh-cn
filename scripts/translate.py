@@ -16,60 +16,102 @@ from email.utils import formataddr
 # 分段大小（行），避免超出模型单次输出上限
 CHUNK_LINES = 200
 
-SYSTEM_PROMPT_PS1 = """You are localizing a PowerShell script from English into Simplified Chinese (简体中文).
+SYSTEM_PROMPT_PS1 = """You are localizing the PowerShell script dev-cleaner.ps1 (Dev Cleanup Utility, v1.2.0) from English into Simplified Chinese (简体中文). The user passes you the ACTUAL source file content (possibly split into numbered chunks), not a filename or summary.
 
-Translate ONLY the user-facing text into Simplified Chinese:
-- String literals shown to users, e.g. inside Write-Host, Write-Output, Write-Warning, Write-Error, Read-Host, [Console]::WriteLine, throw, and exit messages.
-- The menu option labels and prompt messages.
-- Prose inside comments (lines starting with #).
+What the script is: a Windows PowerShell 5.1+ interactive cleanup utility with an ASCII-art logo banner, an interactive menu with options 0-15 and 99, cleanup functions for Visual Studio, Android/Gradle, Android SDK, Flutter, npm/Yarn/pnpm, NuGet, PlatformIO, Cordova, Electron, Docker, IDEs (JetBrains, VSCode), Windows Temp & Recycle Bin, browser caches, and app caches, plus progress/measurement messages, confirmation prompts, and error summaries.
 
-DO NOT modify anything else:
-- Keep all code, logic, function names, variable names, parameter definitions, operators, paths, URLs, emoji, ASCII art / box-drawing characters, and -ForegroundColor values exactly as they are.
-- Keep the same quote style (double or single) around each string; only replace the English text inside.
-- Keep string interpolation like $var and $(...) intact inside translated text.
-- Do not add or remove lines; keep the structure identical.
-- Keep product names in English: Visual Studio, Android Studio, VSCode, Flutter, npm, Yarn, pnpm, NuGet, PlatformIO, Cordova, Electron, Docker, Gradle, SDK.
+Translate ONLY:
+- User-facing string literals shown via Write-Host, Write-Output, Write-Warning, Write-Error, Read-Host, [Console]::WriteLine, throw, and exit messages.
+- Interactive prompts via Read-Host (e.g. "Are you sure you want to start the cleanup utility? (y/N)").
+- Prose inside comments (lines starting with #), including the header comment block.
+- Text inside string interpolation is translated, but $var, $(...), $($item.Path) stay intact.
+
+Menu reference (keep numbering EXACTLY):
+- 0. Exit Program -> 0. 退出程序
+- 1. Clear All Caches -> 1. 清理全部缓存
+- 2. Clear Visual Studio Caches (bin/obj/.vs + global) -> 2. 清理 Visual Studio 缓存（bin/obj/.vs + 全局）
+- 3. Clear Android/Gradle Caches -> 3. 清理 Android/Gradle 缓存
+- 4. Clear Android SDK (old build-tools) -> 4. 清理 Android SDK（旧版 build-tools）
+- 5. Clear Flutter Caches -> 5. 清理 Flutter 缓存
+- 6. Clear npm/Yarn/pnpm Caches -> 6. 清理 npm/Yarn/pnpm 缓存
+- 7. Clear NuGet Package Cache -> 7. 清理 NuGet 包缓存
+- 8. Clear PlatformIO Caches -> 8. 清理 PlatformIO 缓存
+- 9. Clear Cordova tmp files -> 9. 清理 Cordova 临时文件
+- 10. Clear Electron cache -> 10. 清理 Electron 缓存
+- 11. Clear Docker (...) -> 11. 清理 Docker（...）
+- 12. Clear IDE Caches (JetBrains, VSCode) -> 12. 清理 IDE 缓存（JetBrains、VSCode）
+- 13. Clean Windows Temp & Recycle Bin -> 13. 清理 Windows 临时文件与回收站
+- 14. Clear Browser Caches (Chrome, Edge, Firefox, Brave, Opera) -> 14. 清理浏览器缓存（Chrome、Edge、Firefox、Brave、Opera）
+- 15. Clean App Caches (Slack, Teams, Discord, Spotify, WhatsApp) -> 15. 清理应用缓存（Slack、Teams、Discord、Spotify、WhatsApp）
+- 99. Estimate reclaimable space (read-only, ~ = approximate) -> 99. 估算可回收空间（只读，~ 表示近似值）
+- Section headers like `─── Development Tools ───` -> `─── 开发工具 ───`, `─── IDEs & Editors ───` -> `─── IDE 与编辑器 ───`, `─── System ───` -> `─── 系统 ───`
 
 Consistent terminology:
-- Clean / Cleaning / Cleanup / Clear -> 清理
+- Clear / Cleaning / Cleanup / Clean -> 清理
 - Cache(s) -> 缓存
 - All Caches -> 全部缓存
-- Dev Cleaner / Dev Cleanup Utility -> Dev Cleaner（开发清理工具）
-- Remove / Removing / Deleted -> 删除 / 正在删除
-- Measuring / Measure -> 正在计算 / 计算
-- Exit -> 退出
-- Confirm -> 确认
-- Yes / No (y/N) -> 是 / 否（保持 (y/N) 不变）
+- Estimate / Estimated / Measuring / Reclaimable -> 估算 / 预估 / 正在测量 / 可回收
+- Remove / Removing / Deleted / Delete -> 删除 / 正在删除
+- Cleaning / Running / Processing -> 正在清理 / 正在运行 / 正在处理
+- Exit / Confirm / Cancel -> 退出 / 确认 / 取消
 - Please -> 请
-- Running -> 正在运行
-- Skipped -> 已跳过
-- Estimated -> 预估
+- Free Space -> 可用空间
+- Administrator privileges / elevation -> 管理员权限 / 提权
+- Version -> 版本
+- Some items could not be deleted -> 部分项目无法删除
+- Reason -> 原因
 
-Output ONLY the translated script. Do NOT wrap it in Markdown code fences, do NOT add explanations, headers, or any text outside the script."""
+Keep EXACTLY as-is (do NOT translate):
+- The ASCII-art logo banner, all code, logic, function names, variable names, parameter definitions, operators, paths, URLs, emoji, box-drawing characters, -ForegroundColor values, and the (y/N) / (0-15, or 99...) choice tokens.
+- Quote style (double vs single) around each string; only replace the English text inside.
+- String interpolation: $var, $(...), $($item.Path).
+- Product names: Visual Studio, Android Studio, VSCode, Flutter, npm, Yarn, pnpm, NuGet, PlatformIO, Cordova, Electron, Docker, Gradle, SDK, JetBrains, Chrome, Edge, Firefox, Brave, Opera, Slack, Teams, Discord, Spotify, WhatsApp, PowerShell.
+- Do not add or remove lines; keep the structure identical.
 
-SYSTEM_PROMPT_MD = """You are localizing a Markdown document (a README) from English into Simplified Chinese (简体中文).
+Output ONLY the translated script chunk. Do NOT wrap it in Markdown code fences, do NOT add explanations, headers, or any text outside the script. If the chunk contains no user-facing text, output it unchanged."""
 
-Translate into Simplified Chinese:
-- Prose paragraphs, headings, list items, table cell text, and link labels / alt text.
+SYSTEM_PROMPT_MD = """You are localizing the README.md of the Dev Cleaner project (upstream repo: jemishavasoya/dev-cleaner) from English into Simplified Chinese (简体中文). The user passes you the ACTUAL document content (possibly split into numbered chunks), not a filename or summary.
 
-DO NOT change:
-- Code blocks (fenced with ```) and inline code; their content stays as-is.
-- URLs, image paths, HTML tags, badge URLs, and their structure.
-- Markdown structure: heading levels, tables, lists, blockquotes, horizontal rules.
-- Product names: Visual Studio, Android Studio, VSCode, Flutter, npm, Yarn, pnpm, NuGet, PlatformIO, Cordova, Electron, Docker, Gradle, SDK, Xcode, Homebrew.
-- Keep emoji and icon text.
+What the document contains: a title `# 🧹 Dev Cleaner Utility`, shield badges (img.shields.io), a centered poster image (./images/poster_1.0.1.png), sections for Features, System Support (a markdown table), How to Use (Auto Run Script, Install via Homebrew, Windows Installation with One-Line Download & Run / Manual Download / Command-Line Options / Environment Variables / Windows-Specific Cleanup, Flutter Cleanup Details), Contribution, and Common Issues (Permission Errors, Free Space Did Not Change After Cleanup (macOS), Tool Not Found), many fenced code blocks with install/run commands, and a Buy Me A Coffee donation link.
+
+Translate ONLY:
+- Prose paragraphs, headings (keep #/##/### levels and emoji icons), list items, table cell text, and link labels / alt text.
+- Inline code and code blocks: translate ONLY comments/echo text inside them if any; DO NOT translate commands, flags, paths, package names.
+
+Heading reference (keep heading levels and emoji EXACTLY):
+- # 🧹 Dev Cleaner Utility -> # 🧹 Dev Cleaner 工具
+- ## Support Latest macOS/Linux/Windows Dev Environments -> ## 支持最新的 macOS/Linux/Windows 开发环境
+- ### ✨ Features -> ### ✨ 功能特性
+- ### 💻 System Support -> ### 💻 系统支持
+- ### 👀 How to Use -> ### 👀 使用方法
+- #### ⭐ Auto Run Script -> #### ⭐ 自动运行脚本
+- #### 🍺 Install via Homebrew -> #### 🍺 通过 Homebrew 安装
+- #### 🪟 Windows Installation -> #### 🪟 Windows 安装
+- #### 🧹 Flutter Cleanup Details -> #### 🧹 Flutter 清理详情
+- ## 🤩 Contribution -> ## 🤩 参与贡献
+- ## Common Issues -> ## 常见问题
+- ### Permission Errors -> ### 权限错误
+- ### Tool Not Found -> ### 找不到工具
 
 Consistent terminology:
 - Clean / Cleaning / Cleanup / Clear -> 清理
 - Cache(s) -> 缓存
-- Dev Cleaner / Dev Cleanup Utility -> Dev Cleaner（开发清理工具）
-- Remove / Removing / Deleted -> 删除 / 正在删除
-- How to Use -> 使用方法
-- Features -> 功能特性
-- System Support -> 系统支持
-- Troubleshooting -> 常见问题
+- One-Click -> 一键
+- Free up disk space / Free Space -> 释放磁盘空间 / 可用空间
+- Dev Cleaner / Dev Cleanup Utility -> Dev Cleaner / Dev Cleaner 工具
+- How to Use / Features / System Support / Troubleshooting -> 使用方法 / 功能特性 / 系统支持 / 常见问题
+- Install / Run / Download / Check version -> 安装 / 运行 / 下载 / 查看版本
+- Recursively -> 递归地
+- Interactive Menu -> 交互式菜单
 
-Output ONLY the translated Markdown document. Do NOT wrap it in an extra code fence and do NOT add explanations outside the document."""
+Keep EXACTLY as-is (do NOT translate):
+- Fenced code blocks (``` ... ```) content: commands, flags, paths, URLs, package names (e.g. curl -fsSL ..., brew tap ..., flutter, dev-cleaner.sh). Only prose comments inside them may be translated.
+- Inline code, URLs, image paths, HTML tags, shield badge URLs, and Buy Me A Coffee button markup.
+- Markdown structure: heading levels, tables, lists, blockquotes, horizontal rules, emoji icons.
+- Product names: macOS, Linux, Windows, Xcode, Flutter, Visual Studio, npm, NuGet, Homebrew, Docker, CocoaPods, Gradle, JetBrains, VSCode, PowerShell.
+- Do not add or remove lines; keep the structure identical.
+
+Output ONLY the translated Markdown document chunk. Do NOT wrap it in an extra code fence, do NOT add explanations or any text outside the document. If the chunk contains no translatable prose, output it unchanged."""
 
 # here-string 开始标记 -> 结束标记（避免在 here-string 中间切段）
 HERE_OPEN_TO_CLOSE = {'@"': '"@', "@'": "'@"}
@@ -222,18 +264,35 @@ def call_llm(messages, cfg, model=None):
         raise RuntimeError("API 响应格式异常: {}".format(json.dumps(data)[:500]))
 
 
-def strip_fences(text):
-    """剥离模型输出整体包裹的 Markdown 代码围栏（```lang ... ```）。
+def strip_fences(text, kind="ps1"):
+    """剥离模型输出外层包裹的 Markdown 代码围栏（```lang ... ```）。
 
-    仅当首行是围栏开头、末行是围栏结尾时剥离首尾行；
-    内容内部的代码块（如 markdown 译文自带的 ```）不会被误剥。
+    - ps1：取第一对 ``` 之间的内容。ps1 内容本身不含围栏，任何围栏都是模型加的，
+      即使前面带说明文字也能剥离。
+    - md：仅当首行是围栏开头、末行是围栏结尾时剥离首尾行；
+      md 内容内部可能含合法代码块（```），不能按"第一对"剥离，以免误伤。
     """
+    if kind == "md":
+        lines = text.splitlines()
+        if len(lines) >= 2:
+            first = lines[0].strip()
+            last = lines[-1].strip()
+            if first.startswith("```") and last == "```":
+                return "\n".join(lines[1:-1])
+        return text
+    # ps1：取第一对围栏之间的内容
     lines = text.splitlines()
-    if len(lines) >= 2:
-        first = lines[0].strip()
-        last = lines[-1].strip()
-        if first.startswith("```") and last == "```":
-            return "\n".join(lines[1:-1])
+    start = None
+    end = None
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith("```"):
+            if start is None:
+                start = i + 1
+            else:
+                end = i
+                break
+    if start is not None and end is not None and end > start:
+        return "\n".join(lines[start:end])
     return text
 
 
@@ -335,7 +394,7 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=0)
                         time.sleep(2 * attempt)
                     continue
                 # 剥离模型可能包裹的代码围栏，再做逐段结构校验
-                cleaned = strip_fences(raw or "")
+                cleaned = strip_fences(raw or "", kind)
                 seg_errors = validate_segment(cleaned, kind, original_text=chunk_text)
                 if not seg_errors:
                     return cleaned
