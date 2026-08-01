@@ -145,11 +145,12 @@ def load_smtp_config():
 def send_smtp_alert(cfg, subject, body):
     """发送 SMTP 告警邮件；未配置 SMTP 或发送失败时仅打印错误，不中断流程。"""
     smtp = cfg.get("smtp")
+    label = cfg.get("input_label", "?")
     if not smtp:
-        print("[alert] 未配置 SMTP（缺少 SMTP_HOST），跳过邮件通知", file=sys.stderr)
+        print("[alert][{}] 未配置 SMTP（缺少 SMTP_HOST），跳过邮件通知".format(label), file=sys.stderr)
         return
     if not smtp["to_addrs"]:
-        print("[alert] SMTP 未配置收件人（SMTP_TO），跳过邮件通知", file=sys.stderr)
+        print("[alert][{}] SMTP 未配置收件人（SMTP_TO），跳过邮件通知".format(label), file=sys.stderr)
         return
     from_addr = smtp["from_addr"] or smtp["user"]
     msg = MIMEText(body, "plain", "utf-8")
@@ -167,9 +168,9 @@ def send_smtp_alert(cfg, subject, body):
             server.login(smtp["user"], smtp["password"])
         server.sendmail(from_addr, smtp["to_addrs"], msg.as_string())
         server.quit()
-        print("[alert] SMTP 通知已发送至 {}".format(", ".join(smtp["to_addrs"])), file=sys.stderr)
+        print("[alert][{}] SMTP 通知已发送至 {}".format(label, ", ".join(smtp["to_addrs"])), file=sys.stderr)
     except Exception as e:
-        print("[alert] SMTP 发送失败（不影响流程）: {}".format(e), file=sys.stderr)
+        print("[alert][{}] SMTP 发送失败（不影响流程）: {}".format(label, e), file=sys.stderr)
 
 
 def split_into_chunks(lines, size=CHUNK_LINES):
@@ -222,22 +223,17 @@ def call_llm(messages, cfg, model=None):
 
 
 def strip_fences(text):
-    """剥离模型输出外层包裹的 Markdown 代码围栏（```lang ... ```）。
+    """剥离模型输出整体包裹的 Markdown 代码围栏（```lang ... ```）。
 
-    取第一对 ``` 之间的内容；若无围栏则原样返回。
+    仅当首行是围栏开头、末行是围栏结尾时剥离首尾行；
+    内容内部的代码块（如 markdown 译文自带的 ```）不会被误剥。
     """
     lines = text.splitlines()
-    start = None
-    end = None
-    for i, ln in enumerate(lines):
-        if ln.strip().startswith("```"):
-            if start is None:
-                start = i + 1
-            else:
-                end = i
-                break
-    if start is not None and end is not None and end > start:
-        return "\n".join(lines[start:end])
+    if len(lines) >= 2:
+        first = lines[0].strip()
+        last = lines[-1].strip()
+        if first.startswith("```") and last == "```":
+            return "\n".join(lines[1:-1])
     return text
 
 
@@ -291,16 +287,28 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=0)
     retries 表示同一模型单轮内的重试次数；0 表示不重试（每个模型仅尝试一次）。
     返回通过结构校验的译文；全部轮次均失败则抛出 RuntimeError。
     """
-    base_prompt = (
-        "以下是源代码文件的实际内容（第 {}/{} 段，按代码顺序排列），"
-        "请基于这段内容本身进行翻译处理（而非文件名或摘要）。\n"
-        "请按系统规则翻译这一段，只输出翻译后的这段内容本身，"
-        "不要输出任何解释、标题或 Markdown 代码围栏。\n\n"
-        "```\n{}\n```"
-    ).format(idx, total, chunk_text)
+    # user 消息构造：ps1 用代码围栏包裹；md 用 DOCUMENT 标记包裹，
+    # 因为 md 内容本身含 ``` 代码块，外层再套代码围栏会形成嵌套冲突
+    if kind == "md":
+        base_prompt = (
+            "以下是源代码文件的实际内容（第 {}/{} 段，按文档顺序排列），"
+            "请基于这段内容本身进行翻译处理（而非文件名或摘要）。\n"
+            "请按系统规则翻译这一段，只输出翻译后的这段内容本身，"
+            "不要输出任何解释、标题，也不要额外套用 Markdown 代码围栏。\n\n"
+            "<<<DOCUMENT_START>>>\n{}\n<<<DOCUMENT_END>>>"
+        ).format(idx, total, chunk_text)
+    else:
+        base_prompt = (
+            "以下是源代码文件的实际内容（第 {}/{} 段，按代码顺序排列），"
+            "请基于这段内容本身进行翻译处理（而非文件名或摘要）。\n"
+            "请按系统规则翻译这一段，只输出翻译后的这段内容本身，"
+            "不要输出任何解释、标题或 Markdown 代码围栏。\n\n"
+            "```\n{}\n```"
+        ).format(idx, total, chunk_text)
     models = [cfg["model"]]
     if cfg.get("fallback_model"):
         models.append(cfg["fallback_model"])
+    label = cfg.get("input_label", "?")
     # 重试 N 次 = 共尝试 1+N 次；retries=0 表示不重试（每个模型仅尝试一次）
     attempts = 1 + retries
     last_err = None
@@ -323,7 +331,7 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=0)
                     raw = call_llm(messages, cfg, model=model)
                 except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as e:
                     last_err = "API 调用失败: {}".format(e)
-                    if attempt < retries:
+                    if attempt < attempts:
                         time.sleep(2 * attempt)
                     continue
                 # 剥离模型可能包裹的代码围栏，再做逐段结构校验
@@ -333,48 +341,35 @@ def translate_chunk(chunk_text, idx, total, cfg, system_prompt, kind, retries=0)
                     return cleaned
                 last_err = "; ".join(seg_errors)
                 print(
-                    "[translate] 第 {}/{} 段，模型 {}，校验未通过（{}），尝试 {}/{}...".format(
-                        idx, total, model, last_err, attempt, attempts
+                    "[translate][{}] 第 {}/{} 段，模型 {}，校验未通过（{}），尝试 {}/{}...".format(
+                        label, idx, total, model, last_err, attempt, attempts
                     ),
                     file=sys.stderr,
                 )
                 if attempt < attempts:
                     time.sleep(2 * attempt)
             print(
-                "[translate] 第 {}/{} 段，模型 {} 失败（第 {} 轮）：{}".format(
-                    idx, total, model, round_no, last_err
+                "[translate][{}] 第 {}/{} 段，模型 {} 失败（第 {} 轮）：{}".format(
+                    label, idx, total, model, round_no, last_err
                 ),
                 file=sys.stderr,
             )
         # 本轮 primary + fallback 均失败，进入下一轮
         if round_no < cfg["max_rounds"]:
             print(
-                "[translate] 第 {}/{} 段第 {} 轮全部模型失败，稍后进入第 {} 轮...".format(
-                    idx, total, round_no, round_no + 1
+                "[translate][{}] 第 {}/{} 段第 {} 轮全部模型失败，稍后进入第 {} 轮...".format(
+                    label, idx, total, round_no, round_no + 1
                 ),
                 file=sys.stderr,
             )
             time.sleep(3 * round_no)
-    # 所有轮次均失败：发送 SMTP 告警后抛出异常
+    # 所有轮次均失败：只抛出异常（SMTP 告警由 main 在任务结束时统一发送一次）
     err_msg = (
         "第 {} 段翻译失败（已循环 {} 轮，模型 {}）: {}".format(
             idx, cfg["max_rounds"], " -> ".join(models), last_err
         )
         + ". 若反复出现花括号不匹配/截断，请尝试：1) 调大 LLM_MAX_TOKENS（如 16384）；"
         "2) 更换更稳定的主/备用模型。"
-    )
-    send_smtp_alert(
-        cfg,
-        "[dev-cleaner-zh-cn] 汉化失败：第 {}/{} 段".format(idx, total),
-        "翻译任务在多次尝试后仍未成功，详情：\n\n{}\n\n"
-        "仓库/任务信息：\n- 输入文件：{}\n- 主模型：{}\n- 备用模型：{}\n"
-        "- 循环轮数：{}\n\n请检查模型 API 状态或调整配置后重试。".format(
-            err_msg,
-            os.environ.get("UPSTREAM_FILE", "?"),
-            cfg["model"],
-            cfg.get("fallback_model") or "（未配置）",
-            cfg["max_rounds"],
-        ),
     )
     raise RuntimeError(err_msg)
 
@@ -388,8 +383,9 @@ def translate_chunk_with_split(chunk_text, idx, total, cfg, system_prompt, kind,
         if len(lines) < 8:
             raise
         mid = len(lines) // 2
+        label = cfg.get("input_label", "?")
         print(
-            "[translate] 第 {}/{} 段翻译失败，拆分为两半重试: {}".format(idx, total, e),
+            "[translate][{}] 第 {}/{} 段翻译失败，拆分为两半重试: {}".format(label, idx, total, e),
             file=sys.stderr,
         )
         half_a = translate_chunk("\n".join(lines[:mid]), idx, total, cfg, system_prompt, kind, retries)
@@ -482,11 +478,15 @@ def main():
     with open(args.input, "r", encoding="utf-8-sig", newline="") as f:
         original = f.read()
 
+    # 输入文件显示名，用于日志区分当前处理的是哪个文件
+    label = os.path.basename(args.input)
+
     if args.mock:
         translated = mock_translate(original, args.kind)
-        print("[translate] mock 模式，未调用 LLM", file=sys.stderr)
+        print("[translate][{}] mock 模式，未调用 LLM".format(label), file=sys.stderr)
     else:
         cfg = load_config()
+        cfg["input_label"] = label
         system_prompt = load_system_prompt(args.prompt, args.kind)
         if cfg["chunk_lines"] <= 0:
             chunks = [original.rstrip("\n")]
@@ -494,26 +494,43 @@ def main():
             chunks = split_into_chunks(original.splitlines(), cfg["chunk_lines"])
         total = len(chunks)
         print(
-            "[translate] 共 {} 段，逐段调用 LLM（模型 {}，fallback: {}）...".format(
-                total, cfg["model"], cfg["fallback_model"] or "无"
+            "[translate][{}] 共 {} 段，逐段调用 LLM（模型 {}，fallback: {}）...".format(
+                label, total, cfg["model"], cfg["fallback_model"] or "无"
             ),
             file=sys.stderr,
         )
         parts = []
-        for i, chunk in enumerate(chunks, 1):
-            print("[translate] 翻译第 {}/{} 段...".format(i, total), file=sys.stderr)
-            parts.append(translate_chunk_with_split(chunk, i, total, cfg, system_prompt, args.kind, args.retries))
+        try:
+            for i, chunk in enumerate(chunks, 1):
+                print("[translate][{}] 翻译第 {}/{} 段...".format(label, i, total), file=sys.stderr)
+                parts.append(translate_chunk_with_split(chunk, i, total, cfg, system_prompt, args.kind, args.retries))
+        except RuntimeError as e:
+            # 整个汉化任务最终失败：统一发送一次 SMTP 告警后重新抛出
+            send_smtp_alert(
+                cfg,
+                "[dev-cleaner-zh-cn] 汉化任务失败：{}".format(label),
+                "汉化任务在多次尝试后仍未成功，详情：\n\n{}\n\n"
+                "任务信息：\n- 输入文件：{}\n- 主模型：{}\n- 备用模型：{}\n"
+                "- 循环轮数：{}\n\n请检查模型 API 状态或调整配置后重试。".format(
+                    e,
+                    label,
+                    cfg["model"],
+                    cfg.get("fallback_model") or "（未配置）",
+                    cfg["max_rounds"],
+                ),
+            )
+            raise
         translated = "\n".join(parts)
         translated = translated.strip() + "\n"
 
     errors = validate(original, translated, args.kind)
     if errors:
         for e in errors:
-            print("[validate] FAIL: {}".format(e), file=sys.stderr)
+            print("[validate][{}] FAIL: {}".format(label, e), file=sys.stderr)
         print(
-            "[validate] 建议：1) 调大 LLM_MAX_TOKENS（如 16384）；"
+            "[validate][{}] 建议：1) 调大 LLM_MAX_TOKENS（如 16384）；"
             "2) 更换更稳定的主/备用模型；"
-            "3) 重新运行 workflow 观察段级校验输出。",
+            "3) 重新运行 workflow 观察段级校验输出。".format(label),
             file=sys.stderr,
         )
         sys.exit(1)
@@ -525,7 +542,7 @@ def main():
     # UTF-8 BOM：Windows PowerShell 5.1 识别中文必需（markdown 亦保持一致）
     with open(args.output, "w", encoding="utf-8-sig", newline="") as f:
         f.write(translated)
-    print("[translate] 完成: {}（{} 行, UTF-8 BOM）".format(args.output, len(translated.splitlines())))
+    print("[translate][{}] 完成: {}（{} 行, UTF-8 BOM）".format(label, args.output, len(translated.splitlines())))
 
 
 if __name__ == "__main__":
