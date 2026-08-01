@@ -1,0 +1,138 @@
+name: 同步上游并发布汉化版
+
+'on':
+  schedule:
+    # 每周一 03:00 UTC（北京时间周一 11:00）自动运行
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: '上游 ref（commit SHA / tag / 分支名）'
+        required: false
+        default: 'ec1037bbcf8e64614301dfb2020b4b8f4ee7289d'
+      upstream_file:
+        description: '上游仓库内要汉化的文件路径'
+        required: false
+        default: 'dev-cleaner.ps1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-zh-cn
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: jemishavasoya/dev-cleaner
+  UPSTREAM_REF: ${{ inputs.upstream_ref || 'ec1037bbcf8e64614301dfb2020b4b8f4ee7289d' }}
+  UPSTREAM_FILE: ${{ inputs.upstream_file || 'dev-cleaner.ps1' }}
+  TRANSLATED_FILE: dev-cleaner.zh-CN.ps1
+  TRANSLATED_README: README.zh-CN.md
+
+jobs:
+  sync-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 下载上游源文件
+        run: |
+          mkdir -p upstream
+          curl -fsSL "https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_REF}/${UPSTREAM_FILE}" \
+            -o upstream/dev-cleaner.ps1
+          curl -fsSL "https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_REF}/README.md" \
+            -o upstream/README.md
+          printf '%s\n' "${UPSTREAM_REF}" > upstream-ref.txt
+          echo "已下载上游 ${UPSTREAM_REF}"
+          echo "  脚本行数: $(wc -l < upstream/dev-cleaner.ps1)"
+          echo "  README 行数: $(wc -l < upstream/README.md)"
+
+      - name: LLM 汉化
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+        run: |
+          python scripts/translate.py \
+            --input upstream/dev-cleaner.ps1 \
+            --output "${TRANSLATED_FILE}"
+          # README 汉化，并在头部声明源代码来源
+          README_HEADER=$(printf '> **来源声明**：本文件由 GitHub Actions 自动汉化自上游仓库 [jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner) 的 `README.md`（commit `%s`）。\n>\n> 原始文件：https://github.com/jemishavasoya/dev-cleaner/blob/%s/README.md\n' "${UPSTREAM_REF}" "${UPSTREAM_REF}")
+          python scripts/translate.py \
+            --input upstream/README.md \
+            --output "${TRANSLATED_README}" \
+            --kind md \
+            --header "${README_HEADER}"
+
+      - name: 检查翻译结果是否有变化
+        id: check
+        run: |
+          changed=false
+          for f in "${TRANSLATED_FILE}" "${TRANSLATED_README}"; do
+            if ! git ls-files --error-unmatch "$f" >/dev/null 2>&1 \
+               || ! git diff --quiet HEAD -- "$f"; then
+              changed=true
+              break
+            fi
+          done
+          if [ "$changed" = "true" ]; then
+            echo "翻译结果有变化，准备发布"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "翻译结果与上次一致，无需发布新 Release"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 计算版本与标签
+        id: version
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION="$(grep -oE '\$SCRIPT_VERSION = "[^"]+"' "${TRANSLATED_FILE}" | head -1 | sed 's/.*"\(.*\)"/\1/')"
+          [ -n "$VERSION" ] || VERSION="0.0.0"
+          DATE="$(date -u +%Y-%m-%d)"
+          TAG="zh-CN-v${VERSION}-$(date -u +%Y%m%d)"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: 提交汉化文件
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${TRANSLATED_FILE}" "${TRANSLATED_README}" \
+            upstream/dev-cleaner.ps1 upstream/README.md upstream-ref.txt
+          git commit -m "chore: 同步上游 ${UPSTREAM_REF}，发布汉化版 v${{ steps.version.outputs.version }}"
+          git push origin HEAD
+
+      - name: 创建 GitHub Release
+        if: steps.check.outputs.changed == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Dev Cleaner 汉化版 v${{ steps.version.outputs.version }}
+          body: |
+            ## Dev Cleaner 汉化版 v${{ steps.version.outputs.version }}
+
+            - 上游仓库：[jemishavasoya/dev-cleaner](https://github.com/jemishavasoya/dev-cleaner)
+            - 上游 commit：[${{ env.UPSTREAM_REF }}](https://github.com/${{ env.UPSTREAM_REPO }}/commit/${{ env.UPSTREAM_REF }})
+            - 汉化时间：${{ steps.version.outputs.date }}
+            - 说明：由 GitHub Actions 自动同步上游并调用 LLM 汉化；用户可见文本已译为简体中文，代码逻辑与上游保持一致。
+
+            ### 附件
+            - `dev-cleaner.zh-CN.ps1` — 汉化版脚本（UTF-8 BOM，适用于 Windows PowerShell 5.1+）
+            - `README.zh-CN.md` — 汉化版说明文档（头部含源代码来源声明）
+            - `upstream/dev-cleaner.ps1` — 上游原始脚本（供对照）
+            - `upstream/README.md` — 上游原始说明文档（供对照）
+          files: |
+            dev-cleaner.zh-CN.ps1
+            README.zh-CN.md
+            upstream/dev-cleaner.ps1
+            upstream/README.md
