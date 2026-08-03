@@ -104,11 +104,11 @@ function Format-Size {
     else                    { return ("{0} B" -f $Bytes) }
 }
 
-# 将 Docker 尺寸字符串（Docker 使用十进制单位：B/kB/MB/GB/TB，
-# 例如 "1.02GB"、"728.5MB"、"32.8kB"、"0B"）转换为字节，以便将 Docker 自身
-# 报告的尺寸求和并像其他估算一样传入 Format-Size。后缀顺序很重要：
-# kB/MB/GB/TB 都以 "B" 结尾，因此裸 "B" 的情况必须最后检查。Docker 始终
-# 使用点号作为小数分隔符，因此使用 InvariantCulture。只读。
+# 将 Docker 大小字符串（Docker 使用十进制单位：B/kB/MB/GB/TB，
+# 例如 "1.02GB"、"728.5MB"、"32.8kB"、"0B"）转换为字节数，以便将 Docker 自身
+# 报告的大小求和并像其他估算一样传入 Format-Size。后缀顺序很重要：kB/MB/GB/TB
+# 都以 "B" 结尾，因此裸 "B" 的情况必须最后检查。Docker 始终使用点号作为小数
+# 分隔符，因此使用 InvariantCulture。只读。
 function Convert-DockerSize {
     param([string]$Size)
     if ([string]::IsNullOrWhiteSpace($Size)) { return [int64]0 }
@@ -130,7 +130,7 @@ function Set-Estimate {
 }
 
 # 为稳定的分类键返回 " (Estimate: <label>)"，若尚未计算则返回 ""。
-# 键为字符串（非菜单编号），以便安全地重新编号。
+# 键为字符串（非菜单编号），以便重新编号时保持安全。
 function Get-Est {
     param([string]$Key)
     if (-not $script:EstimatesReady) { return "" }
@@ -151,7 +151,7 @@ function Test-Administrator {
 function Request-Elevation {
     if (-not (Test-Administrator)) {
         Write-Host "此脚本需要管理员权限。" -ForegroundColor Yellow
-        Write-Host "正在以提权方式重新启动..." -ForegroundColor Yellow
+        Write-Host "正在以管理员身份重新启动..." -ForegroundColor Yellow
 
         $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
 
@@ -350,14 +350,14 @@ function Clear-Flutter {
         if (Test-Path "android") {
             Write-Host "    正在删除 Android 构建产物..." -ForegroundColor DarkGray
             Remove-SafelyWithTracking -Path "android\.gradle" -Description "Android Gradle 缓存"
-            Remove-SafelyWithTracking -Path "android\build" -Description "Android 构建文件夹"
-            Remove-SafelyWithTracking -Path "android\app\build" -Description "Android 应用构建文件夹"
+            Remove-SafelyWithTracking -Path "android\build" -Description "Android build 文件夹"
+            Remove-SafelyWithTracking -Path "android\app\build" -Description "Android app build 文件夹"
         }
 
         # Windows 产物
         if (Test-Path "windows\flutter\ephemeral") {
             Write-Host "    正在删除 Windows 临时文件..." -ForegroundColor DarkGray
-            Remove-SafelyWithTracking -Path "windows\flutter\ephemeral" -Description "Windows 临时文件夹"
+            Remove-SafelyWithTracking -Path "windows\flutter\ephemeral" -Description "Windows ephemeral 文件夹"
         }
 
         Pop-Location
@@ -513,9 +513,9 @@ function Clear-WindowsTemp {
             Remove-SafelyWithTracking -Path $_.FullName -Description "系统临时文件：$($_.Name)"
         }
 
-        Write-Item "✓" "Green" "正在清理 Windows 更新缓存（可选）..."
+        Write-Item "✓" "Green" "正在清理 Windows Update 缓存（可选）..."
         Get-ChildItem -Path "C:\Windows\SoftwareDistribution\Download" -Force -ErrorAction SilentlyContinue | ForEach-Object {
-            Remove-SafelyWithTracking -Path $_.FullName -Description "Windows 更新：$($_.Name)"
+            Remove-SafelyWithTracking -Path $_.FullName -Description "Windows Update：$($_.Name)"
         }
     } else {
         Write-Item "ℹ️" "Yellow" "系统临时文件清理需要管理员权限（已跳过）"
@@ -580,7 +580,7 @@ function Clear-AppContainers {
         Remove-SafelyWithTracking -Path "$env:APPDATA\Slack\Service Worker\CacheStorage" -Description "Slack Service Worker"
     }
 
-    # Microsoft Teams 经典版
+    # Microsoft Teams Classic
     if (Test-Path "$env:APPDATA\Microsoft\Teams") {
         Remove-SafelyWithTracking -Path "$env:APPDATA\Microsoft\Teams\Cache" -Description "Teams 缓存"
         Remove-SafelyWithTracking -Path "$env:APPDATA\Microsoft\Teams\blob_storage" -Description "Teams blob 存储"
@@ -591,16 +591,16 @@ function Clear-AppContainers {
         Remove-SafelyWithTracking -Path "$env:APPDATA\Microsoft\Teams\tmp" -Description "Teams 临时文件"
     }
 
-    # Microsoft Teams 新版
+    # Microsoft Teams New
     $teamsNew = "$env:LOCALAPPDATA\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams"
     if (Test-Path $teamsNew) {
-        Remove-SafelyWithTracking -Path $teamsNew -Description "Teams 新版缓存"
+        Remove-SafelyWithTracking -Path $teamsNew -Description "Teams New 缓存"
     }
 
     # Discord
     if (Test-Path "$env:APPDATA\discord") {
         Remove-SafelyWithTracking -Path "$env:APPDATA\discord\Cache" -Description "Discord 缓存"
-        Remove-SafelyWithTracking -Path "$env:APPDATA\discord\Code Cache" -Description "Discord 代码缓存"
+        Remove-SafelyWithTracking -Path "$env:APPDATA\discord\Code Cache" -Description "Discord Code 缓存"
     }
 
     # Spotify
@@ -643,7 +643,7 @@ function Clear-Electron {
 
     if (Test-Path $electronPath) {
         Write-Item "✓" "Green" "正在清理 Electron 缓存..."
-        # 缓存的预构建二进制文件；清空内容，保留 electron 期望的目录
+        # 缓存的预构建二进制文件；清除内容，保留 electron 期望的目录
         $items = Get-ChildItem -Path $electronPath -Force -ErrorAction SilentlyContinue
         foreach ($i in $items) {
             Remove-SafelyWithTracking -Path $i.FullName -Description "Electron 缓存：$($i.Name)"
@@ -653,8 +653,8 @@ function Clear-Electron {
     }
 }
 
-# -Interactive 通过二次提示提供更深度的 `prune -af`。"清理全部缓存"
-# 不带此参数调用，因此批量运行不会意外删除带标签的镜像。
+# -交互式选项通过二次确认提供更深度的 `prune -af`。"清理全部缓存"
+# 不带此选项调用，因此批量运行不会意外删除带标签的镜像。
 function Clear-Docker {
     param([switch]$Interactive)
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -670,15 +670,15 @@ function Clear-Docker {
     Write-Item "✓" "Green" "Docker 磁盘使用情况："
     $dfOut | ForEach-Object { Write-Host $_ }
 
-    # `prune -f` 删除已停止的容器、未使用的网络、悬空（未标记）镜像
-    # 和未使用的构建缓存；-f 跳过 Docker 自身的确认（脚本已确认）。
-    # `-a` 还会删除容器未使用的 EVERY 镜像，包括可能仅存在于私有
-    # 注册表的带标签镜像——因此通过提示选择启用，不在批量"清理全部缓存"路径中。
-    # （--volumes 在两种情况下均省略：它会删除命名卷数据，如数据库。）
+    # `prune -f` 删除已停止的容器、未使用的网络、悬空（未标记）镜像和未使用的构建缓存；
+    # -f 跳过 Docker 自身的确认（脚本已确认）。`-a` 额外删除容器未使用的
+    # 所有镜像，包括可能仅存在于私有注册表的带标签镜像——因此通过提示选择启用，
+    # 不在批量"清理全部缓存"路径中。（--volumes 在两种情况下均省略：它会删除
+    # 命名卷数据，如数据库。）
     $pruneArgs = @('-f')
     if ($Interactive) {
         Write-Host ""
-        Write-Host "是否也删除未使用但已标记的镜像？可释放更多空间，但需要重新拉取/重新构建（例如私有注册表镜像）。(y/N)：" -ForegroundColor Yellow
+        Write-Host "是否也删除未使用但带标签的镜像？可释放更多空间，但需要重新拉取/重新构建（例如私有注册表镜像）。(y/N)：" -ForegroundColor Yellow
         $ans = Read-Host
         if ($ans -eq 'y') { $pruneArgs = @('-af') }
     }
@@ -687,7 +687,7 @@ function Clear-Docker {
 
 # --- 可回收空间估算 ---
 # 只读：计算每个清理选项将删除的当前磁盘大小，然后 Show-Menu 在每个条目旁显示。
-# 分类使用稳定的字符串键，以便安全地重新编号菜单。
+# 分类使用稳定的字符串键，以便菜单可以安全地重新编号。
 # 重要：保持这些路径列表与上面的 Clear-* 函数同步。
 
 function Invoke-EstimateAll {
@@ -843,7 +843,7 @@ function Invoke-EstimateAll {
     #   -f  ：可回收的构建缓存 + 悬空（未标记）镜像
     #   -af ：上述内容 + 容器未使用的所有镜像（包括带标签的）
     # 可回收的构建缓存来自 `system df` 摘要（Docker 计算正确；仅其 Images 数据在使用
-    # containerd 镜像存储时不可靠）。每个镜像的尺寸来自 `system df -v`，
+    # containerd 镜像存储时不可靠）。每个镜像的大小来自 `system df -v`，
     # 对 0 容器行求和 UNIQUE SIZE，以避免重复计算共享层。近似值，因此不加入字节总数。
     Write-Host "  正在测量 Docker 可回收空间..." -ForegroundColor DarkGray
     if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -945,7 +945,7 @@ function Show-Menu {
     Write-Host ""
     Write-Host "99. 估算可回收空间（只读，~ 表示近似值）" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "→ 请输入您的选择（0-15，或 99 进行估算）： " -NoNewline
+    Write-Host "→ 请输入您的选择（0-15，或 99 进行估算）：" -NoNewline
 }
 
 # --- 主循环 ---
@@ -1067,7 +1067,7 @@ function Start-MainLoop {
             "99" {
                 Write-SectionHeader "估算可回收空间"
                 Invoke-EstimateAll
-                # 只读：跳过前后摘要，并使用刚计算的估算值重新绘制菜单。
+                # 只读：跳过前后对比摘要，并使用刚计算的估算值重新绘制菜单
                 continue
             }
             default {
@@ -1081,7 +1081,7 @@ function Start-MainLoop {
 
         $finalFreeSpace = Get-DiskSpace
         Write-Host ""
-        Write-Host "✅ 清理任务完成！" -ForegroundColor Green
+        Write-Host "✅ 清理任务已完成！" -ForegroundColor Green
         Write-Host "清理前磁盘空间：$initialFreeSpace" -ForegroundColor Blue
         Write-Host "清理后磁盘空间：$finalFreeSpace" -ForegroundColor Blue
         Write-Host ""
@@ -1110,14 +1110,14 @@ Dev Cleanup Utility v$SCRIPT_VERSION
 
 交互式菜单：
   选项 99 估算每个条目的可回收空间，并使用 "(Estimate: <大小>)" 重新绘制菜单。
-  该选项为只读（不会删除任何内容）。前缀 "~" 表示近似值；Flutter、
-  PlatformIO 和 Visual Studio 的估算仅涵盖全局缓存。
+  它是只读的（不会删除任何内容）。前缀 "~" 表示近似值；Flutter、PlatformIO
+  和 Visual Studio 的估算仅涵盖全局缓存。
 
 示例：
   .\dev-cleaner.ps1                                    # 运行交互式菜单
   .\dev-cleaner.ps1 -FlutterDir "C:\Dev\Flutter"       # 自定义 Flutter 搜索目录
   .\dev-cleaner.ps1 -VsDir "C:\Dev\DotNet"             # 自定义 VS 搜索目录
-  .\dev-cleaner.ps1 -FlutterDir "D:\Projects" -VsDir "D:\VS"  # 同时设置两个自定义目录
+  .\dev-cleaner.ps1 -FlutterDir "D:\Projects" -VsDir "D:\VS"  # 两个自定义目录
 
 环境变量：
   `$env:FLUTTER_SEARCH_DIR = "C:\Projects\Flutter"
@@ -1221,7 +1221,7 @@ Write-Host ""
 $initialConfirm = Read-Host "您确定要启动清理工具吗？(y/N)"
 
 if ($initialConfirm -ne "y" -and $initialConfirm -ne "Y") {
-    Write-Host "已取消清理工具。"
+    Write-Host "清理工具已取消。"
     exit 0
 }
 

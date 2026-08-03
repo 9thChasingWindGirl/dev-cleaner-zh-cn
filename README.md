@@ -29,21 +29,21 @@
 
 ### ✨ 功能特性
 
-* **一键清理：** 清理 Xcode、Flutter、Visual Studio、Gradle、npm、NuGet、IDE 和浏览器缓存。
+* **一键清理：** 清除 Xcode、Flutter、Visual Studio、Gradle、npm、NuGet、IDE 和浏览器缓存。
 * **全面的 Flutter 清理：** 递归查找并清理所有 Flutter 项目，删除：
   * FVM SDK 缓存和配置（`.fvm`、`.fvmrc`）
   * Flutter 构建产物（`build`、`.dart_tool`、`.packages`、`pubspec.lock`）
   * Android Gradle 缓存（`android/.gradle`、`android/build`、`android/app/build`）
   * iOS CocoaPods 缓存（`ios/Pods`、`ios/Podfile.lock`、`ios/.symlinks`、Flutter 框架）
   * 全局 Flutter 缓存
-* **交互式菜单：** 允许选择特定的清理目标（例如，仅清理 Xcode）。
+* **交互式菜单：** 允许选择特定的清理目标（例如仅清理 Xcode）。
 * **多平台支持：** 支持 **macOS**、**Linux** 和 **Windows**。
 
 ---
 
 ### 💻 系统支持
 
-| 操作系统 | 架构 | 支持 |
+| 操作系统 | 架构 | 支持情况 |
 | :--------------- | :----------- | :-------- |
 | macOS            | Intel, Apple Silicon | ✅        |
 | Linux            | x64, ARM64   | ✅        |
@@ -57,7 +57,7 @@
 
 **Linux/macOS**
 
-通过一行命令下载、授权并运行工具：
+通过一行命令完成下载、授权并运行工具：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jemishavasoya/dev-cleaner/main/dev-cleaner.sh -o dev-cleanup.sh && chmod +x dev-cleanup.sh && ./dev-cleanup.sh
@@ -143,7 +143,7 @@ irm https://raw.githubusercontent.com/jemishavasoya/dev-cleaner/main/dev-cleaner
 ##### 环境变量
 
 ```powershell
-# 在 PowerShell 配置文件中设置以持久化
+# 在 PowerShell 配置文件中设置以实现持久化
 $env:FLUTTER_SEARCH_DIR = "C:\Projects\Flutter"
 $env:VS_SEARCH_DIR = "C:\Projects\DotNet"
 ```
@@ -160,7 +160,7 @@ Windows 版本包含所有跨平台清理功能，此外还有：
 
 #### 🧹 Flutter 清理详情
 
-Flutter 清理选项（选项 4）会对从当前目录开始的所有 Flutter 项目执行全面的递归清理。它会：
+Flutter 清理选项（选项 4）会从当前目录开始，对所有 Flutter 项目进行全面递归清理。它会：
 
 - **递归搜索**所有 `pubspec.yaml` 文件
 - **删除 FVM** SDK 缓存和配置
@@ -169,7 +169,7 @@ Flutter 清理选项（选项 4）会对从当前目录开始的所有 Flutter �
 - **删除 iOS CocoaPods** 缓存和 Flutter 框架
 - **清理全局 Flutter 缓存**
 
-**💡 专业提示：** 如果您有日常活跃的项目，建议从特定子目录（例如 `~/old_projects` 或 `~/research`）运行清理，而不是整个开发文件夹。这样可以避免对活跃项目的不必要依赖重建。
+**💡 专业提示：** 如果您有日常活跃的项目，建议从特定子目录（如 `~/old_projects` 或 `~/research`）运行清理，而不是整个开发文件夹。这样可以避免对活跃项目的不必要依赖重建。
 
 **预期节省空间：** 用户报告在多个项目上运行 Flutter 清理后，释放了 50-100GB+ 的磁盘空间。
 ### 您也可以请我喝杯咖啡 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.buymeacoffee.com/jempatellbv" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Tea" style="height: 60px !important;width: 217px !important;" ></a>
@@ -197,15 +197,15 @@ Reclaimed:  ~3.0Gi
 Free space: 21.4Gi → 21.4Gi
 ```
 
-**`Reclaimed` 测量的是实际删除的文件** — 这些数据已消失。**可用空间可能会滞后**，因为只要 Time Machine *本地快照*仍然引用它们，APFS 就会保持已删除文件的块分配（Finder 称此为"可清除"空间）。macOS 会自动释放它，通常在 24 小时内或磁盘空间紧张时立即释放。
+**`Reclaimed`（已回收）测量的是实际被删除的文件** — 这些数据已消失。**可用空间可能会滞后**，因为只要 Time Machine *本地快照*仍然引用它们，APFS 就会保持已删除文件的块分配（Finder 称此为"可清除"空间）。macOS 会自动释放它，通常在 24 小时内或磁盘空间紧张时立即释放。
 
-要立即回收空间，请运行 **选项 17（删除 Time Machine 本地快照）** — 或检查什么被固定：
+要立即回收空间，请运行 **选项 17（删除 Time Machine 本地快照）** — 或检查哪些被锁定：
 
 ```bash
 tmutil listlocalsnapshots /
 ```
 
-另外两种可用空间滞后的情况：应用仍保持已删除文件打开（退出 Xcode、模拟器、浏览器），以及 Docker — `docker system prune` 释放 Docker 自身磁盘镜像*内部*的空间，主机只有在 Docker Desktop 压缩该镜像后才能看到。
+另外两种可用空间滞后的情况：应用仍保持已删除文件打开（退出 Xcode、模拟器、浏览器），以及 Docker — `docker system prune` 在 Docker 自己的磁盘镜像*内部*释放空间，主机只有在 Docker Desktop 压缩该镜像后才能看到。
 
 ### 找不到工具
 - 确保 `flutter` 或 `brew` 等工具已安装并添加到系统 PATH 中。
