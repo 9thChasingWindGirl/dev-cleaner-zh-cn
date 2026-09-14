@@ -18,25 +18,25 @@
 </p>
 
 <p align="center">
-  <img src="./images/poster_1.0.1.png" alt="poster_1.0.1" style="width:100%; height:auto; style="border-radius: 8px;"/><br>
+  <img src="./images/poster_1.0.1.png" alt="海报" style="width:100%; height:auto; style="border-radius: 8px;"/><br>
 </p>
 
 ## 支持最新的 macOS/Linux/Windows 开发环境
 
-本工具仅用于**教育目的**，专注于安全删除与开发相关的垃圾文件（Xcode、Flutter、Visual Studio、npm 等）以释放磁盘空间。
+本工具**仅供教育目的**，专注于安全地删除与开发相关的垃圾文件（Xcode、Flutter、Visual Studio、npm 等），以释放磁盘空间。
 
 ---
 
 ### ✨ 功能特性
 
-* **一键清理：** 清除 Xcode、Flutter、Visual Studio、Gradle、npm、NuGet、IDE 和浏览器缓存。
-* **全面的 Flutter 清理：** 递归查找并清理所有 Flutter 项目，移除：
-  * FVM SDK 缓存和配置（`.fvm`、`.fvmrc`）
-  * Flutter 构建产物（`build`、`.dart_tool`、`.packages`、`pubspec.lock`）
-  * Android Gradle 缓存（`android/.gradle`、`android/build`、`android/app/build`）
-  * iOS CocoaPods 缓存（`ios/Pods`、`ios/Podfile.lock`、`ios/.symlinks`、Flutter 框架）
-  * 全局 Flutter 缓存
-* **AI CLI 工具：** 清理原生安装程序遗留的旧 Claude Code 二进制文件（`~/.local/share/claude/versions`，每个版本约 190 MB），保留正在使用的版本。
+* **一键清理：** 清理 Xcode、Flutter、Visual Studio、Gradle、npm、NuGet、IDE 和浏览器缓存。
+* **全面 Flutter 清理：** 递归查找并清理所有 Flutter 项目，移除：
+  * FVM SDK 缓存和配置 (`.fvm`、`.fvmrc`)
+  * Flutter 构建产物 (`build`、`.dart_tool`、`.packages`、`pubspec.lock`)
+  * Android Gradle 缓存 (`android/.gradle`、`android/build`、`android/app/build`)
+  * iOS CocoaPods 缓存 (`ios/Pods`、`ios/Podfile.lock`、`ios/.symlinks`、Flutter 框架)
+  * Flutter 全局缓存
+* **AI CLI 工具：** 删除 Claude Code 原生安装程序遗留的旧版本二进制文件（`~/.local/share/claude/versions`，每个版本约 190 MB），保留当前使用的版本。
 * **交互式菜单：** 允许选择特定的清理目标（例如仅清理 Xcode）。
 * **多平台支持：** 支持 **macOS**、**Linux** 和 **Windows**。
 
@@ -46,9 +46,9 @@
 
 | 操作系统 | 架构 | 支持情况 |
 | :--------------- | :----------- | :-------- |
-| macOS            | Intel、Apple Silicon | ✅        |
-| Linux            | x64、ARM64   | ✅        |
-| Windows          | x64、ARM64   | ✅        |
+| macOS            | Intel, Apple Silicon | ✅        |
+| Linux            | x64, ARM64   | ✅        |
+| Windows          | x64, ARM64   | ✅        |
 
 ---
 
@@ -58,7 +58,7 @@
 
 **Linux/macOS**
 
-一键下载、授予权限并运行本工具：
+一行命令完成下载、授予权限和运行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jemishavasoya/dev-cleaner/main/dev-cleaner.sh -o dev-cleanup.sh && chmod +x dev-cleanup.sh && ./dev-cleanup.sh
@@ -68,7 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/jemishavasoya/dev-cleaner/main/dev-
 
 **macOS/Linux**
 
-通过 Homebrew 进行永久安装：
+使用 Homebrew 进行永久安装：
 
 ```bash
 # 添加仓库
@@ -84,7 +84,7 @@ dev-cleaner
 dev-cleaner --version
 ```
 
-更新到最新版本：
+升级到最新版本：
 
 ```bash
 brew update
@@ -115,8 +115,8 @@ irm https://raw.githubusercontent.com/jemishavasoya/dev-cleaner/main/dev-cleaner
 
 ##### 手动下载
 
-1. 从此仓库下载 `dev-cleaner.ps1`
-2. 右键文件 → **使用 PowerShell 运行**，或
+1. 从本仓库下载 `dev-cleaner.ps1`
+2. 右键点击文件 → **使用 PowerShell 运行**，或
 3. 以管理员身份打开 PowerShell 并运行：
    ```powershell
    .\dev-cleaner.ps1
@@ -153,20 +153,20 @@ $env:VS_SEARCH_DIR = "C:\Projects\DotNet"
 
 Windows 版本包含所有跨平台清理功能，外加：
 
-- **Visual Studio：** 清理所有 .NET 项目的 `bin/`、`obj/`、`.vs/` 文件夹，以及全局 VS 缓存（ComponentModelCache、MEFCacheData）
+- **Visual Studio：** 清理所有 .NET 项目的 `bin/`、`obj/`、`.vs/` 文件夹，以及 VS 全局缓存（ComponentModelCache、MEFCacheData）
 - **NuGet：** 清除全局包缓存（`~/.nuget/packages`）、HTTP 缓存和临时文件
-- **Windows 临时文件：** 清除用户和系统临时文件夹，以及回收站
+- **Windows 临时文件夹：** 清除用户和系统临时文件夹，以及回收站
 
-> **注意：** 某些操作需要管理员权限。脚本会自动请求提权（如需要）。
+> **注意：** 部分操作需要管理员权限。脚本会在需要时自动请求提升权限。
 
 #### 🤖 Claude Code 版本清理
 
-Claude Code 的原生安装程序会将所有曾经安装的版本保留在 `~/.local/share/claude/versions/` 下，且从不删除旧版本，因此几周后台自动更新会悄悄占用数 GB 空间。选项 19（Windows 上为选项 12）会清理它们。由于这些文件之一是 `claude` 命令实际运行的二进制文件，此选项故意保持保守：
+Claude Code 的原生安装程序会将每次安装过的所有版本保留在 `~/.local/share/claude/versions/` 下，且从不删除旧版本，因此数周的背景自动更新会悄悄占用数 GB 空间。选项 19（Windows 上为选项 12）会清理这些残留文件。由于其中一个文件正是 `claude` 命令实际运行的二进制文件，此选项的处理较为保守：
 
-- **始终保留：** 启动器（`~/.local/bin/claude`）解析到的版本，以及运行中的会话仍在使用中的任何二进制文件。
-- **Windows 上额外保留：** 最新文件，因为不存在符号链接可解析，且更新可能直接写入 `versions\` 而非复制到 `bin\`。
-- **完全跳过** —— 不删除任何内容，并显示警告 —— 当启动器不是指向 `versions/` 的符号链接（您用自己的脚本替换了它）或指向磁盘上不存在的版本时。无法识别活动版本，因此不做猜测。
-- **绝不触碰：** `~/.claude/` 和 `~/.claude.json`。设置、MCP 配置和会话历史都存储在此处。
+- **始终保留：** 启动器（`~/.local/bin/claude`）所解析到的版本，以及仍在运行的会话中保持打开状态的任意二进制文件。
+- **Windows 上额外保留：** 最新版本的文件，因为 Windows 没有符号链接可供解析，更新可能直接写入 `versions\` 而不会复制到 `bin\`。
+- **完全跳过** — 不删除任何内容，并发出警告 — 当启动器不是指向 `versions/` 的符号链接（您用自己的脚本替换了它）或指向的版本已从磁盘上不存在时。无法识别活跃版本，因此不会做任何猜测。
+- **绝不触碰：** `~/.claude/` 和 `~/.claude.json`。设置、MCP 配置和会话历史均存放在这些位置。
 
 #### 🧹 Flutter 清理详情
 
@@ -175,18 +175,19 @@ Flutter 清理选项（选项 4）会对当前目录下的所有 Flutter 项目�
 - **递归搜索** 所有 `pubspec.yaml` 文件
 - **移除 FVM** SDK 缓存和配置
 - **清理构建产物：** `build/`、`.dart_tool/`、`.packages`、`pubspec.lock`
-- **移除每个项目的 Android Gradle** 缓存
+- **移除 Android Gradle** 缓存
 - **移除 iOS CocoaPods** 缓存和 Flutter 框架
-- **清理全局 Flutter 缓存**
+- **清理 Flutter 全局缓存**
 
-**💡 提示：** 如果您有每天活跃使用的核心项目，建议从特定子目录（如 `~/old_projects` 或 `~/research`）运行清理，而不是整个开发文件夹。这样可以避免不必要的活跃项目依赖重新构建。
+**💡 专业提示：** 如果您有每天活跃使用的项目，建议从特定子目录（例如 `~/old_projects` 或 `~/research`）运行清理，而不是整个开发文件夹。这样可以避免对活跃项目触发不必要的依赖重新构建。
 
-**预期节省空间：** 用户报告在多个项目上运行 Flutter 清理后，可释放 50-100GB+ 的磁盘空间。
-你也可以请我喝杯咖啡 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.buymeacoffee.com/jempatellbv" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Tea" style="height: 60px !important;width: 217px !important;" ></a>
+**预期节省空间：** 用户反馈在清理多个 Flutter 项目后，可释放 50–100GB+ 的磁盘空间。
 
-## 🤩 参与贡献
+### 您也可以请我喝杯咖啡 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.buymeacoffee.com/jempatellbv" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Tea" style="height: 60px !important;width: 217px !important;" ></a>
 
-欢迎提交 Issues 和 Pull Requests！
+## 🤩 参与贡献 
+
+我们欢迎您提交 Issues 和 Pull Requests！
 
 <a href="https://github.com/jemishavasoya/dev-cleaner/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=jemishavasoya/dev-cleaner&preview=false&max=&columns=" />
@@ -196,28 +197,28 @@ Flutter 清理选项（选项 4）会对当前目录下的所有 Flutter 项目�
 ## 常见问题
 
 ### 权限错误
-- 如果运行脚本时遇到权限错误，尝试使用 `sudo`（Linux/macOS）或以管理员身份运行（Windows）。
+- 如果在运行脚本时遇到权限错误，请尝试使用 `sudo`（Linux/macOS）或以管理员身份（Windows）运行。
 
 ### 清理后可用空间未变化（macOS）
 
-摘要中有目的地显示了两个不同的数值：
+汇总信息有意打印两项不同内容：
 
 ```
 Reclaimed:  ~3.0Gi
 Free space: 21.4Gi → 21.4Gi
 ```
 
-**`Reclaimed` 是根据实际删除的文件测量的** —— 这些数据已 gone。**可用空间可能会滞后**，因为 APFS 只要 Time Machine *本地快照* 仍引用这些块，就会将已删除文件的块保留为分配状态（Finder 称之为"可清除"空间）。macOS 会自动释放它，通常在 24 小时内或磁盘空间紧张时立即释放。
+**`Reclaimed`** 测量的是**实际已删除文件**的数据 — 这些数据已消失。**可用空间可能滞后**，因为 APFS 会保留已删除文件的存储块，只要 Time Machine 的**本地快照**仍在引用它们（Finder 称此类空间为"可清理"空间）。macOS 会自动释放这些空间，通常在 24 小时内或磁盘空间紧张时立即释放。
 
-如需立即回收空间，请运行**选项 17（移除 Time Machine 本地快照）**—— 或检查被锁定的内容：
+如需立即回收空间，请运行**选项 17（删除 Time Machine 本地快照）**，或查看当前锁定的快照：
 
 ```bash
 tmutil listlocalsnapshots /
 ```
 
-另外两种导致可用空间滞后的情况：应用仍持有已删除的文件（退出 Xcode、模拟器、浏览器），以及 Docker —— `docker system prune` 仅在 Docker 自身磁盘镜像内部释放空间，宿主机要等 Docker Desktop 压缩该镜像后才能看到变化。
+另外两种可用空间滞后的情况：应用仍持有已删除文件的句柄（退出 Xcode、Simulator、浏览器），以及 Docker — `docker system prune` 在 Docker 自身的磁盘镜像**内部**释放空间，主机侧需等待 Docker Desktop 压缩该镜像后才能看到变化。
 
 ### 找不到工具
 - 确保 `flutter` 或 `brew` 等工具已安装并添加到系统 PATH 中。
-- 在 macOS/Linux 上，使用 `echo $PATH` 检查 PATH。
-- 在 Windows 上，在系统设置中检查环境变量。
+- macOS/Linux 上，使用 `echo $PATH` 检查 PATH。
+- Windows 上，在系统设置中检查环境变量。
