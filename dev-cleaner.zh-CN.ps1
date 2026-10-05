@@ -1,8 +1,8 @@
 ﻿# -----------------------------------------------------------------------------
-# Dev Cleanup Utility - Windows PowerShell 版本
+# Dev Cleanup Utility - Windows PowerShell 版
 # -----------------------------------------------------------------------------
 # 版本：1.2.0
-# 平台：Windows（PowerShell 5.1+）
+# 平台：Windows (PowerShell 5.1+)
 # 仓库：https://github.com/jemishavasoya/dev-cleaner
 # -----------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ param(
 $SCRIPT_VERSION = "1.2.0"
 $GITHUB_REPO = "https://github.com/jemishavasoya/dev-cleaner"
 
-# --- 错误跟踪 ---
+# --- 错误追踪 ---
 $script:FailedItems = [System.Collections.ArrayList]::new()
 
 # --- 估算状态 ---
@@ -43,7 +43,7 @@ function Write-HeaderLine {
         $width = $Host.UI.RawUI.WindowSize.Width
         if ($width -lt 1) { $width = 80 }
     } catch {
-        $width = 80  # 非交互会话的备选值
+        $width = 80  # 非交互式会话的回退
     }
     Write-Host ($Char * $width)
 }
@@ -73,7 +73,7 @@ function Get-DiskSpace {
     return "未知"
 }
 
-# --- 估算辅助函数（只读：不会删除任何内容）---
+# --- 估算辅助（只读：不会删除任何内容）---
 
 function Get-PathSizeBytes {
     param([string[]]$Paths)
@@ -104,11 +104,11 @@ function Format-Size {
     else                    { return ("{0} B" -f $Bytes) }
 }
 
-# 将 Docker 尺寸字符串（Docker 使用十进制单位：B/kB/MB/GB/TB，
-# 例如 "1.02GB"、"728.5MB"、"32.8kB"、"0B"）转换为字节数，以便将
-# Docker 自行报告的尺寸求和并传入 Format-Size，与其他估算方式一致。
-# 后缀顺序很重要：kB/MB/GB/TB 都以 "B" 结尾，因此裸 "B" 情况必须最后检查。
-# Docker 始终将小数点打印为点号，因此使用 InvariantCulture。只读操作。
+# 将 Docker 大小字符串（Docker 使用十进制单位：B/kB/MB/GB/TB，
+# 例如 "1.02GB"、"728.5MB"、"32.8kB"、"0B"）转换为字节，这样 Docker 自报的大小
+# 可以像其他估算一样求和并传入 Format-Size。后缀顺序很重要：kB/MB/GB/TB 都以 "B" 结尾，
+# 所以单独的 "B" 必须最后检查。Docker 始终使用点号作为小数分隔符，因此使用 InvariantCulture。
+# 只读。
 function Convert-DockerSize {
     param([string]$Size)
     if ([string]::IsNullOrWhiteSpace($Size)) { return [int64]0 }
@@ -129,13 +129,13 @@ function Set-Estimate {
     $script:Estimates[$Key] = $Label
 }
 
-# 对于稳定的分类键返回 " (估算：<标签>)"，如果尚未计算则返回 ""。
-# 键是字符串（而非菜单编号），因此重新编号不会影响安全。
+# 为稳定的分类键返回 " (估算: <label>)"，如果尚未计算则返回 ""。
+# 键是字符串（而非菜单编号），以便安全地重新编号。
 function Get-Est {
     param([string]$Key)
     if (-not $script:EstimatesReady) { return "" }
     if ($script:Estimates.ContainsKey($Key) -and $script:Estimates[$Key]) {
-        return " (估算：$($script:Estimates[$Key]))"
+        return " (估算: $($script:Estimates[$Key]))"
     }
     return ""
 }
@@ -151,7 +151,7 @@ function Test-Administrator {
 function Request-Elevation {
     if (-not (Test-Administrator)) {
         Write-Host "此脚本需要管理员权限。" -ForegroundColor Yellow
-        Write-Host "正在重新提权启动..." -ForegroundColor Yellow
+        Write-Host "正在以提权方式重新运行..." -ForegroundColor Yellow
 
         $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
 
@@ -163,7 +163,7 @@ function Request-Elevation {
     }
 }
 
-# --- 错误跟踪函数 ---
+# --- 错误追踪函数 ---
 
 function Remove-SafelyWithTracking {
     param(
@@ -174,7 +174,7 @@ function Remove-SafelyWithTracking {
     try {
         if (Test-Path $Path) {
             Remove-Item -Path $Path -Recurse -Force -ErrorAction Stop
-            Write-Item "✓" "Green" "已删除：$Description"
+            Write-Item "✓" "Green" "已删除: $Description"
         }
     }
     catch {
@@ -188,10 +188,10 @@ function Remove-SafelyWithTracking {
 function Show-FailureSummary {
     if ($script:FailedItems.Count -gt 0) {
         Write-Host ""
-        Write-Host "部分项目无法删除：" -ForegroundColor Yellow
+        Write-Host "部分项目无法删除:" -ForegroundColor Yellow
         foreach ($item in $script:FailedItems) {
             Write-Host "  - $($item.Path)" -ForegroundColor Red
-            Write-Host "    原因：$($item.Reason)" -ForegroundColor DarkGray
+            Write-Host "    原因: $($item.Reason)" -ForegroundColor DarkGray
         }
         Write-Host ""
     }
@@ -203,14 +203,14 @@ function Show-FailureSummary {
 function Clear-VisualStudio {
     param([string]$SearchDir = ".")
 
-    Write-Item "✓" "Green" "正在从 $SearchDir 清理 Visual Studio 项目"
+    Write-Item "✓" "Green" "正在从 $SearchDir 清理 Visual Studio 项目..."
 
     if (-not (Test-Path $SearchDir)) {
-        Write-Item "✕" "Red" "未找到目录：$SearchDir"
+        Write-Item "✕" "Red" "未找到目录: $SearchDir"
         return
     }
 
-    # 项目级别清理
+    # 项目级清理
     $solutionFiles = Get-ChildItem -Path $SearchDir -Filter "*.sln" -Recurse -ErrorAction SilentlyContinue
     $projectFiles = Get-ChildItem -Path $SearchDir -Filter "*.csproj" -Recurse -ErrorAction SilentlyContinue
 
@@ -218,7 +218,7 @@ function Clear-VisualStudio {
 
     foreach ($sln in $solutionFiles) {
         $slnDir = $sln.DirectoryName
-        Write-Host "  正在清理解决方案：$slnDir" -ForegroundColor Cyan
+        Write-Host "  正在清理解决方案: $slnDir" -ForegroundColor Cyan
 
         Remove-SafelyWithTracking -Path "$slnDir\.vs" -Description "$slnDir 中的 .vs 文件夹"
         $cleanedCount++
@@ -226,7 +226,7 @@ function Clear-VisualStudio {
 
     foreach ($proj in $projectFiles) {
         $projDir = $proj.DirectoryName
-        Write-Host "  正在清理项目：$projDir" -ForegroundColor Cyan
+        Write-Host "  正在清理项目: $projDir" -ForegroundColor Cyan
 
         Remove-SafelyWithTracking -Path "$projDir\bin" -Description "$projDir 中的 bin 文件夹"
         Remove-SafelyWithTracking -Path "$projDir\obj" -Description "$projDir 中的 obj 文件夹"
@@ -236,11 +236,11 @@ function Clear-VisualStudio {
     if ($cleanedCount -gt 0) {
         Write-Item "✓" "Green" "已清理 $cleanedCount 个 Visual Studio 项目/解决方案"
     } else {
-        Write-Item "ℹ️" "Yellow" "未在 $SearchDir 中找到 Visual Studio 项目"
+        Write-Item "ℹ️" "Yellow" "在 $SearchDir 中未找到 Visual Studio 项目"
     }
 
-    # Visual Studio 全局缓存
-    Write-Item "✓" "Green" "正在清理 Visual Studio 全局缓存..."
+    # 全局 Visual Studio 缓存
+    Write-Item "✓" "Green" "正在清理全局 Visual Studio 缓存..."
 
     $vsVersions = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\VisualStudio" -Directory -ErrorAction SilentlyContinue
     foreach ($vsVersion in $vsVersions) {
@@ -256,10 +256,10 @@ function Clear-AndroidGradle {
         Write-Item "✓" "Green" "正在清理 Gradle 缓存..."
         Remove-SafelyWithTracking -Path "$env:USERPROFILE\.gradle\caches" -Description "Gradle 缓存"
         Remove-SafelyWithTracking -Path "$env:USERPROFILE\.gradle\daemon" -Description "Gradle 守护进程"
-        # 已下载的 Gradle 发行版；下次运行 wrapper 时会重新获取。
+        # 下载的 Gradle 发行版；下次运行 wrapper 时会重新获取。
         Remove-SafelyWithTracking -Path "$env:USERPROFILE\.gradle\wrapper" -Description "Gradle wrapper 发行版"
     } else {
-        Write-Item "✕" "Yellow" "未找到 Gradle 目录。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Gradle 目录。跳过。"
     }
 
     if (Test-Path "$env:USERPROFILE\.android") {
@@ -278,7 +278,7 @@ function Clear-AndroidGradle {
     foreach ($pattern in $androidStudioPaths) {
         $paths = Get-ChildItem -Path (Split-Path $pattern -Parent) -Filter (Split-Path $pattern -Leaf) -Directory -ErrorAction SilentlyContinue
         foreach ($path in $paths) {
-            Remove-SafelyWithTracking -Path $path.FullName -Description "Android Studio 缓存：$($path.Name)"
+            Remove-SafelyWithTracking -Path $path.FullName -Description "Android Studio 缓存: $($path.Name)"
         }
     }
 }
@@ -287,7 +287,7 @@ function Clear-AndroidSdk {
     $sdkPath = "$env:LOCALAPPDATA\Android\Sdk"
 
     if (Test-Path $sdkPath) {
-        Write-Item "✓" "Green" "正在清理旧版 Android SDK build-tools（保留最新 2 个版本）..."
+        Write-Item "✓" "Green" "正在清理旧版 Android SDK build-tools（保留最新的 2 个版本）..."
 
         $buildToolsPath = "$sdkPath\build-tools"
         if (Test-Path $buildToolsPath) {
@@ -295,14 +295,14 @@ function Clear-AndroidSdk {
             $toRemove = $versions | Select-Object -Skip 2
 
             foreach ($version in $toRemove) {
-                Remove-SafelyWithTracking -Path $version.FullName -Description "旧版 build-tools：$($version.Name)"
+                Remove-SafelyWithTracking -Path $version.FullName -Description "旧版 build-tools: $($version.Name)"
             }
         }
 
         Write-Item "✓" "Green" "正在清理 SDK 临时文件..."
         Remove-SafelyWithTracking -Path "$sdkPath\.temp" -Description "SDK 临时文件夹"
     } else {
-        Write-Item "✕" "Yellow" "未找到 Android SDK。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Android SDK。跳过。"
     }
 }
 
@@ -310,14 +310,14 @@ function Clear-Flutter {
     param([string]$SearchDir = ".")
 
     if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
-        Write-Item "✕" "Yellow" "未找到 Flutter 命令。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Flutter 命令。跳过。"
         return
     }
 
-    Write-Item "✓" "Green" "正在从 $SearchDir 递归清理 Flutter 项目"
+    Write-Item "✓" "Green" "正在从 $SearchDir 递归清理 Flutter 项目..."
 
     if (-not (Test-Path $SearchDir)) {
-        Write-Item "✕" "Red" "未找到目录：$SearchDir"
+        Write-Item "✕" "Red" "未找到目录: $SearchDir"
         return
     }
 
@@ -326,7 +326,7 @@ function Clear-Flutter {
 
     foreach ($pubspec in $pubspecFiles) {
         $projectDir = $pubspec.DirectoryName
-        Write-Host "  正在清理：$projectDir" -ForegroundColor Cyan
+        Write-Host "  正在清理: $projectDir" -ForegroundColor Cyan
 
         Push-Location $projectDir
 
@@ -357,7 +357,7 @@ function Clear-Flutter {
         # Windows 产物
         if (Test-Path "windows\flutter\ephemeral") {
             Write-Host "    正在删除 Windows 临时文件..." -ForegroundColor DarkGray
-            Remove-SafelyWithTracking -Path "windows\flutter\ephemeral" -Description "Windows ephemeral 文件夹"
+            Remove-SafelyWithTracking -Path "windows\flutter\ephemeral" -Description "Windows 临时文件夹"
         }
 
         Pop-Location
@@ -368,7 +368,7 @@ function Clear-Flutter {
     if ($cleanedCount -gt 0) {
         Write-Item "✓" "Green" "已清理 $cleanedCount 个 Flutter 项目"
     } else {
-        Write-Item "ℹ️" "Yellow" "未在 $SearchDir 中找到 Flutter 项目"
+        Write-Item "ℹ️" "Yellow" "在 $SearchDir 中未找到 Flutter 项目"
     }
 
     Write-Item "✓" "Green" "正在清理 Flutter 全局缓存..."
@@ -388,7 +388,7 @@ function Clear-NpmYarnPnpm {
             Write-Item "✕" "Yellow" "无法清理 npm 缓存"
         }
     } else {
-        Write-Item "✕" "Yellow" "未找到 npm。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 npm。跳过。"
     }
 
     if (Get-Command yarn -ErrorAction SilentlyContinue) {
@@ -399,18 +399,18 @@ function Clear-NpmYarnPnpm {
             Write-Item "✕" "Yellow" "无法清理 yarn 缓存"
         }
     } else {
-        Write-Item "✕" "Yellow" "未找到 yarn。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 yarn。跳过。"
     }
 
     if (Get-Command pnpm -ErrorAction SilentlyContinue) {
-        Write-Item "✓" "Green" "正在修剪 pnpm 存储..."
+        Write-Item "✓" "Green" "正在清理 pnpm 存储..."
         try {
             pnpm store prune 2>$null
         } catch {
-            Write-Item "✕" "Yellow" "无法修剪 pnpm 存储"
+            Write-Item "✕" "Yellow" "无法清理 pnpm 存储"
         }
     } else {
-        Write-Item "✕" "Yellow" "未找到 pnpm。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 pnpm。跳过。"
     }
 
     # 手动清理 pnpm 缓存
@@ -430,9 +430,9 @@ function Clear-NuGet {
     if (Get-Command dotnet -ErrorAction SilentlyContinue) {
         try {
             dotnet nuget locals all --clear 2>$null
-            Write-Item "✓" "Green" "已通过 dotnet CLI 清除 NuGet 缓存"
+            Write-Item "✓" "Green" "已通过 dotnet CLI 清理 NuGet 缓存"
         } catch {
-            Write-Item "ℹ️" "Yellow" "已跳过 dotnet nuget locals 命令"
+            Write-Item "ℹ️" "Yellow" "跳过 dotnet nuget locals 命令"
         }
     }
 }
@@ -444,7 +444,7 @@ function Clear-PlatformIO {
         if (Get-Command pio -ErrorAction SilentlyContinue) {
             $pioBin = "pio"
         } else {
-            Write-Item "✕" "Yellow" "未找到 PlatformIO。已跳过。"
+            Write-Item "✕" "Yellow" "未找到 PlatformIO。跳过。"
             return
         }
     }
@@ -456,7 +456,7 @@ function Clear-PlatformIO {
 
     foreach ($file in $platformioFiles) {
         $projectDir = $file.DirectoryName
-        Write-Host "  正在运行 pio clean：$projectDir" -ForegroundColor Cyan
+        Write-Host "  正在运行 pio clean: $projectDir" -ForegroundColor Cyan
 
         Push-Location $projectDir
         try {
@@ -473,27 +473,27 @@ function Clear-IdeCaches {
 
     $jetBrainsVersions = Get-ChildItem -Path "$env:LOCALAPPDATA\JetBrains" -Directory -ErrorAction SilentlyContinue
     foreach ($version in $jetBrainsVersions) {
-        Remove-SafelyWithTracking -Path "$($version.FullName)\caches" -Description "JetBrains 缓存：$($version.Name)"
-        Remove-SafelyWithTracking -Path "$($version.FullName)\index" -Description "JetBrains 索引：$($version.Name)"
-        Remove-SafelyWithTracking -Path "$($version.FullName)\tmp" -Description "JetBrains 临时文件：$($version.Name)"
+        Remove-SafelyWithTracking -Path "$($version.FullName)\caches" -Description "JetBrains 缓存: $($version.Name)"
+        Remove-SafelyWithTracking -Path "$($version.FullName)\index" -Description "JetBrains 索引: $($version.Name)"
+        Remove-SafelyWithTracking -Path "$($version.FullName)\tmp" -Description "JetBrains 临时文件: $($version.Name)"
     }
 
     Write-Item "✓" "Green" "正在清理 VSCode 缓存..."
     Remove-SafelyWithTracking -Path "$env:APPDATA\Code\Cache" -Description "VSCode 缓存"
-    Remove-SafelyWithTracking -Path "$env:APPDATA\Code\CachedData" -Description "VSCode CachedData"
-    Remove-SafelyWithTracking -Path "$env:APPDATA\Code\CachedExtensionVSIXs" -Description "VSCode CachedExtensionVSIXs"
-    Remove-SafelyWithTracking -Path "$env:APPDATA\Code\User\workspaceStorage" -Description "VSCode workspaceStorage"
+    Remove-SafelyWithTracking -Path "$env:APPDATA\Code\CachedData" -Description "VSCode 缓存数据"
+    Remove-SafelyWithTracking -Path "$env:APPDATA\Code\CachedExtensionVSIXs" -Description "VSCode 缓存扩展 VSIX"
+    Remove-SafelyWithTracking -Path "$env:APPDATA\Code\User\workspaceStorage" -Description "VSCode 工作区存储"
 
     Write-Item "✓" "Green" "正在清理 VSCode Insiders 缓存..."
     Remove-SafelyWithTracking -Path "$env:APPDATA\Code - Insiders\Cache" -Description "VSCode Insiders 缓存"
-    Remove-SafelyWithTracking -Path "$env:APPDATA\Code - Insiders\CachedData" -Description "VSCode Insiders CachedData"
+    Remove-SafelyWithTracking -Path "$env:APPDATA\Code - Insiders\CachedData" -Description "VSCode Insiders 缓存数据"
 }
 
 function Clear-WindowsTemp {
     Write-Item "✓" "Green" "正在清理用户临时文件..."
 
     Get-ChildItem -Path $env:TEMP -Force -ErrorAction SilentlyContinue | ForEach-Object {
-        Remove-SafelyWithTracking -Path $_.FullName -Description "用户临时文件：$($_.Name)"
+        Remove-SafelyWithTracking -Path $_.FullName -Description "用户临时文件: $($_.Name)"
     }
 
     Remove-SafelyWithTracking -Path "$env:LOCALAPPDATA\Temp" -Description "本地临时文件夹"
@@ -510,12 +510,12 @@ function Clear-WindowsTemp {
         Write-Item "✓" "Green" "正在清理系统临时文件（管理员）..."
 
         Get-ChildItem -Path "C:\Windows\Temp" -Force -ErrorAction SilentlyContinue | ForEach-Object {
-            Remove-SafelyWithTracking -Path $_.FullName -Description "系统临时文件：$($_.Name)"
+            Remove-SafelyWithTracking -Path $_.FullName -Description "系统临时文件: $($_.Name)"
         }
 
-        Write-Item "✓" "Green" "正在清理 Windows 更新缓存（可选）..."
+        Write-Item "✓" "Green" "正在清理 Windows Update 缓存（可选）..."
         Get-ChildItem -Path "C:\Windows\SoftwareDistribution\Download" -Force -ErrorAction SilentlyContinue | ForEach-Object {
-            Remove-SafelyWithTracking -Path $_.FullName -Description "Windows 更新：$($_.Name)"
+            Remove-SafelyWithTracking -Path $_.FullName -Description "Windows Update: $($_.Name)"
         }
     } else {
         Write-Item "ℹ️" "Yellow" "系统临时文件清理需要管理员权限（已跳过）"
@@ -554,20 +554,20 @@ function Clear-BrowserCaches {
             }
         }
         if (-not $found) {
-            Write-Item "✕" "Yellow" "$browser 缓存未找到。已跳过。"
+            Write-Item "✕" "Yellow" "$browser 缓存未找到。跳过。"
         }
     }
 
-    # Firefox（多配置文件）
+    # Firefox（多个配置）
     $firefoxProfiles = "$env:LOCALAPPDATA\Mozilla\Firefox\Profiles"
     if (Test-Path $firefoxProfiles) {
         Write-Item "✓" "Green" "正在清理 Firefox 缓存..."
         $profiles = Get-ChildItem -Path $firefoxProfiles -Directory -ErrorAction SilentlyContinue
         foreach ($profile in $profiles) {
-            Remove-SafelyWithTracking -Path "$($profile.FullName)\cache2" -Description "Firefox 缓存：$($profile.Name)"
+            Remove-SafelyWithTracking -Path "$($profile.FullName)\cache2" -Description "Firefox 缓存: $($profile.Name)"
         }
     } else {
-        Write-Item "✕" "Yellow" "未找到 Firefox 缓存。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Firefox 缓存。跳过。"
     }
 }
 
@@ -628,13 +628,13 @@ function Clear-Cordova {
 
     if (Test-Path $cordovaPath) {
         Write-Item "✓" "Green" "正在清理 Cordova 临时文件..."
-        # Cordova 会在 lib\tmp* 下留下过期的 npm 压缩包/解压文件
+        # Cordova 会在 lib\tmp* 下留下过时的 npm 压缩包/解压文件
         $tmpDirs = Get-ChildItem -Path "$cordovaPath\lib" -Filter "tmp*" -Force -ErrorAction SilentlyContinue
         foreach ($d in $tmpDirs) {
-            Remove-SafelyWithTracking -Path $d.FullName -Description "Cordova 临时文件：$($d.Name)"
+            Remove-SafelyWithTracking -Path $d.FullName -Description "Cordova 临时文件: $($d.Name)"
         }
     } else {
-        Write-Item "✕" "Yellow" "未找到 Cordova。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Cordova。跳过。"
     }
 }
 
@@ -643,23 +643,24 @@ function Clear-Electron {
 
     if (Test-Path $electronPath) {
         Write-Item "✓" "Green" "正在清理 Electron 缓存..."
-        # 缓存的预构建二进制文件；清空内容但保留 electron 期望的目录
+        # 缓存的预构建二进制文件；清空内容，保留 electron 期望的目录
         $items = Get-ChildItem -Path $electronPath -Force -ErrorAction SilentlyContinue
         foreach ($i in $items) {
-            Remove-SafelyWithTracking -Path $i.FullName -Description "Electron 缓存：$($i.Name)"
+            Remove-SafelyWithTracking -Path $i.FullName -Description "Electron 缓存: $($i.Name)"
         }
     } else {
-        Write-Item "✕" "Yellow" "未找到 Electron。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Electron。跳过。"
     }
 }
 
-# Claude Code 的原生安装程序会保留其曾经安装的每一个版本
-# 在 versions\ 目录下，且从不删除旧版本（每个版本约 190 MB）。与
-# 本脚本中其他目标不同，其中一个文件是 `claude` 命令实际运行的二进制文件。
-# Windows 上没有符号链接可以解析（.local\bin\claude.exe 是使用中版本的副本），
-# 因此通过文件大小进行识别，然后再通过 SHA256 验证。只读操作。
-# 由 Clear-ClaudeCode 和 Invoke-EstimateAll 共享，以确保估算和清理不会偏离。
-# 状态：'missing'（未安装）| 'unknown'（自定义启动器：完全跳过目标）| 'ok'（Files 是权威来源，可能为空）。
+# Claude Code 的原生安装程序会将其 ever 安装过的每个版本都保留在
+# versions\ 目录下，且永远不会删除旧版本（每个版本约 190 MB）。与此脚本中
+# 其他目标不同，这里有一个文件是 `claude` 命令实际运行的二进制文件。
+# Windows 上无需解析符号链接（.local\bin\claude.exe 是正在使用版本的副本），
+# 因此通过大小和 SHA256 来识别活动版本。只读。由 Clear-ClaudeCode 和
+# Invoke-EstimateAll 共享，以确保估算和清理不会分离。
+# 状态：'missing'（未安装）| 'unknown'（自定义启动器：完全跳过目标）
+# | 'ok'（Files 是权威来源，可能为空）。
 function Get-ClaudeRemovableVersions {
     $versionsDir = "$env:USERPROFILE\.local\share\claude\versions"
     $launcher    = "$env:USERPROFILE\.local\bin\claude.exe"
@@ -676,8 +677,8 @@ function Get-ClaudeRemovableVersions {
         return [PSCustomObject]@{ Status = 'ok'; ActiveName = $null; Files = @(); InUse = @() }
     }
 
-    # 仅对大小与启动器完全匹配的候选项进行哈希计算：对不可能匹配的 200 MB
-    # 二进制文件进行哈希纯粹是 I/O 开销。
+    # 仅对大小与启动器完全匹配的文件进行哈希计算：对不可能匹配的 200 MB 二进制文件
+    # 进行哈希纯属 I/O 浪费。
     $launcherItem = Get-Item -LiteralPath $launcher -Force -ErrorAction SilentlyContinue
     $active = $null
     if ($launcherItem) {
@@ -689,20 +690,19 @@ function Get-ClaudeRemovableVersions {
             }
         }
     }
-    # 没有匹配项意味着启动器不是这些二进制文件之一：用户
-    # 用自己的替换了它，就像 macOS/Linux 上的非符号链接启动器一样。
-    # 正在使用的版本无法识别，因此跳过。
+    # 无匹配意味着启动器不是这些二进制文件之一：用户已用自己的替换，
+    # 就像 macOS/Linux 上的非符号链接启动器一样。无法识别使用的版本，因此跳过。
     if (-not $active) {
         return [PSCustomObject]@{ Status = 'unknown'; ActiveName = $null; Files = @(); InUse = @() }
     }
 
-    # 同时保留最新文件：更新可能落入 versions\ 但未
-    # 复制到 bin\，因此最新文件可能不是当前正在运行的那个。
+    # 保留最新的文件：更新可能落入 versions\ 而未复制到 bin\，
+    # 因此最新的文件可能并非当前运行的那个。
     $newest = $files | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
-    # 旧会话仍在运行的二进制文件。$_\.Path 在其他用户的进程上会抛出
-    # 访问拒绝，而管道内抛出的异常会导致中止并静默跳过其后的所有进程，
-    # 因此保护逻辑位于脚本块内部，逐元素检查，而不是包裹整个管道。
+    # 旧会话仍在运行的二进制文件。$_ .Path 在其他用户的进程上会抛出访问被拒绝，
+    # 而在管道内部抛出的异常会终止管道并静默跳过其后的所有进程，因此守卫
+    # 位于脚本块内部，按元素放置，而非环绕管道。
     $inUse = @(Get-Process -ErrorAction SilentlyContinue |
                Where-Object { try { $_.Path -like "$versionsDir\*" } catch { $false } } |
                ForEach-Object { try { $_.Path } catch { $null } })
@@ -717,61 +717,58 @@ function Get-ClaudeRemovableVersions {
 }
 
 # 修剪 %USERPROFILE%\.local\share\claude\versions，保留正在使用的版本、
-# 最新版本，以及仍在运行的会话所占用的文件。
-# 绝不触碰 %USERPROFILE%\.claude\ 或 .claude.json：设置、MCP 配置
-# 和会话历史位于那里。
+# 最新的版本以及任何仍在运行的会话持有的文件。
+# 绝不触碰 %USERPROFILE%\.claude\ 或 .claude.json：设置、MCP 配置和会话历史位于此处。
 function Clear-ClaudeCode {
     $info = Get-ClaudeRemovableVersions
 
     if ($info.Status -eq 'missing') {
-        Write-Item "✕" "Yellow" "未找到 Claude Code。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Claude Code。跳过。"
         return
     }
     if ($info.Status -eq 'unknown') {
-        Write-Item "✕" "Yellow" "Claude Code：无法识别正在使用的版本（自定义启动器）。已跳过。"
+        Write-Item "✕" "Yellow" "Claude Code: 无法识别正在使用的版本（自定义启动器）。跳过。"
         return
     }
     if ($info.InUse.Count -gt 0) {
-        Write-Item "→" "Cyan" "Claude Code：仍有 $($info.InUse.Count) 个版本正在运行；保留它们。"
+        Write-Item "→" "Cyan" "Claude Code: 仍有 $($info.InUse.Count) 个版本正在运行；保留它们。"
     }
     if ($info.Files.Count -eq 0) {
-        Write-Item "✓" "Green" "Claude Code：无需修剪。"
+        Write-Item "✓" "Green" "Claude Code: 无需修剪。"
         return
     }
 
-    Write-Item "✓" "Green" "正在删除旧的 Claude Code 版本（保留 $($info.ActiveName) 及最新版本）..."
+    Write-Item "✓" "Green" "正在删除旧版 Claude Code 版本（保留 $($info.ActiveName) 和最新版本）..."
     foreach ($f in $info.Files) {
-        Remove-SafelyWithTracking -Path $f.FullName -Description "Claude Code 版本：$($f.Name)"
+        Remove-SafelyWithTracking -Path $f.FullName -Description "Claude Code 版本: $($f.Name)"
     }
 }
 
-# -Interactive 会通过二次提示提供更深度的 `prune -af`。"清理全部缓存"
-# 不以交互模式调用此函数，因此批量运行不会意外删除带标签的镜像。
+# -Interactive 通过二次提示提供深入的 `prune -af`。"清理全部缓存"不带此选项调用，
+# 因此批量运行不会意外删除带标签的镜像。
 function Clear-Docker {
     param([switch]$Interactive)
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-        Write-Item "✕" "Yellow" "未找到 Docker。已跳过。"
+        Write-Item "✕" "Yellow" "未找到 Docker。跳过。"
         return
     }
-    # `Get-Command` 仅证明 CLI 存在；守护进程可能仍未运行。
+    # `Get-Command` 仅证明 CLI 存在；守护进程可能仍处于停止状态。
     $dfOut = docker system df 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $dfOut) {
-        Write-Item "✕" "Yellow" "Docker 守护进程未运行。已跳过。"
+        Write-Item "✕" "Yellow" "Docker 守护进程未运行。跳过。"
         return
     }
-    Write-Item "✓" "Green" "Docker 磁盘使用情况："
+    Write-Item "✓" "Green" "Docker 磁盘使用情况:"
     $dfOut | ForEach-Object { Write-Host $_ }
 
-    # `prune -f` 删除已停止的容器、未使用的网络、悬空（未标记）镜像和未使用的构建缓存；
-    # -f 跳过 Docker 自身的确认（脚本已确认）。`-a` 还会删除容器未使用的
-    # 所有镜像，包括可能仅存在于私有注册表的已标记镜像——因此通过提示选择启用，
-    # 绝不会在批量"清理全部"路径中执行。（--volumes 在两种模式下均省略：
-    # 它会删除命名卷数据如数据库。）
+    # `prune -f` 删除停止的容器、未使用的网络、悬空（未标记）镜像和未使用的构建缓存；
+    # -f 跳过 Docker 自身的确认（脚本已确认）。`-a`  additionally 删除所有未被容器使用的
+    # 镜像，包括仅存在于私有注册表的带标签镜像——因此通过提示选择，不在
+    # 批量"清理全部"路径中。（--volumes 在两种情况下都省略：它会删除命名卷数据如数据库。）
     $pruneArgs = @('-f')
     if ($Interactive) {
         Write-Host ""
-        Write-Host "是否也删除未使用但已标记的镜像？可释放更多空间，但它们" -ForegroundColor Yellow
-        Write-Host "需要重新拉取/重新构建（例如私有注册表镜像）。(y/N):" -ForegroundColor Yellow
+        Write-Host "还要删除未使用但带标签的镜像吗？可释放更多空间，但需要重新拉取/重建（例如私有注册表镜像）。(y/N):" -ForegroundColor Yellow
         $ans = Read-Host
         if ($ans -eq 'y') { $pruneArgs = @('-af') }
     }
@@ -779,16 +776,16 @@ function Clear-Docker {
 }
 
 # --- 可回收空间估算 ---
-# 只读：计算每个清理选项将要删除的当前磁盘大小，然后
-# Show-Menu 会在每项旁边显示。分类使用稳定的字符串键，以便菜单可以安全地重新编号。
+# 只读：计算每个清理选项将删除的当前磁盘大小，然后 Show-Menu 在每项旁边显示。
+# 分类使用稳定的字符串键，以便安全地重新编号菜单。
 # 重要：保持这些路径列表与上面的 Clear-* 函数同步。
 
 function Invoke-EstimateAll {
-    Write-Item "🔍" "Cyan" "正在计算估算值...（可能需要一些时间）"
+    Write-Item "🔍" "Cyan" "正在计算估算...（这可能需要一段时间）"
     [int64]$total = 0
     [int64]$b = 0
 
-    # Visual Studio - 仅全局缓存（~）；项目 bin/obj/.vs 不扫描
+    # Visual Studio - 仅全局缓存（~）；项目 bin/obj/.vs 未扫描
     Write-Host "  正在测量 Visual Studio 缓存..." -ForegroundColor DarkGray
     $vsPaths = @()
     $vsVersions = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\VisualStudio" -Directory -ErrorAction SilentlyContinue
@@ -814,7 +811,7 @@ function Invoke-EstimateAll {
     )
     Set-Estimate "android" (Format-Size $b); $total += $b
 
-    # Android SDK - 旧版 build-tools（保留最新 2 个）+ .temp
+    # Android SDK - 旧版 build-tools（保留最新的 2 个）+ .temp
     Write-Host "  正在测量 Android SDK..." -ForegroundColor DarkGray
     $sdkPath = "$env:LOCALAPPDATA\Android\Sdk"
     $sdkPaths = @("$sdkPath\.temp")
@@ -890,7 +887,7 @@ function Invoke-EstimateAll {
     $b = Get-PathSizeBytes $idePaths
     Set-Estimate "ide" (Format-Size $b); $total += $b
 
-    # Windows 临时文件（~）- 回收站/管理员系统临时文件不测量
+    # Windows 临时文件（~）- 回收站/管理员系统临时文件未测量
     Write-Host "  正在测量 Windows 临时文件..." -ForegroundColor DarkGray
     $b = Get-PathSizeBytes @("$env:TEMP", "$env:LOCALAPPDATA\Temp")
     Set-Estimate "windowstemp" ("~" + (Format-Size $b)); $total += $b
@@ -935,9 +932,9 @@ function Invoke-EstimateAll {
     Write-Host "  正在测量 Claude Code 旧版本..." -ForegroundColor DarkGray
     $claudeInfo = Get-ClaudeRemovableVersions
     if ($claudeInfo.Status -eq 'unknown') {
-        # 不可测量，因此不加到字节总数中，与下面的 Docker
-        # "守护进程未运行" 情况相同。
-        Set-Estimate "claudecode" "n/a（自定义启动器）"
+        # 不可测量，因此不添加到字节总数，如同下面 Docker
+        # "守护进程未运行"的情况。
+        Set-Estimate "claudecode" "n/a (自定义启动器)"
     } else {
         $claudePaths = @()
         foreach ($f in $claudeInfo.Files) { $claudePaths += $f.FullName }
@@ -946,19 +943,19 @@ function Invoke-EstimateAll {
     }
 
     # Docker 不是基于路径的：询问 Docker 本身（只读）。两个数值，
-    # 因为选项 11 提供两种 prune 模式：
+    # 因为选项 11 提供两种修剪模式：
     #   -f  : 可回收的构建缓存 + 悬空（未标记）镜像
-    #   -af : 上述 + 容器未使用的所有镜像（包括已标记的）
-    # 构建缓存可回收量来自 `system df` 摘要（Docker
-    # 正确计算了它；只有其 Images 数据在使用 containerd 镜像存储时不可靠）。每张镜像的大小来自 `system df -v`，
-    # 对 UNIQUE SIZE 求和，确保共享层不被重复计算。近似值，因此不加到字节总数中。
+    #   -af : 上述内容 + 所有未被容器使用的镜像（包括带标签的）
+    # 可回收的构建缓存在 `system df` 摘要中（Docker 正确计算它；只有其 Images 数字
+    # 在使用 containerd 镜像存储时不可靠）。每个镜像的大小来自 `system df -v`，
+    # 对 0 容器行求和 UNIQUE SIZE，以免重复计算共享层。近似值，因此不添加到字节总数。
     Write-Host "  正在测量 Docker 可回收空间..." -ForegroundColor DarkGray
     if (Get-Command docker -ErrorAction SilentlyContinue) {
         $dfFmt = docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>$null
         if ($LASTEXITCODE -eq 0 -and $dfFmt) {
             $cacheTok = (($dfFmt | Where-Object { $_ -like 'Build Cache|*' }) -split '\|', 2)[1] -replace ' *\(.*', ''
             [int64]$cacheBytes = Convert-DockerSize $cacheTok
-            # 解析 "Images space usage:" 表格。CREATED 是多词字段
+            # 解析 "Images space usage:" 表格。CREATED 是多单词的
             # （"4 days ago"），因此从右侧索引列：最后一列 = CONTAINERS，
             # 倒数第二列 = UNIQUE SIZE。悬空镜像的 REPOSITORY 为 <none>。
             [int64]$danglingBytes = 0
@@ -978,15 +975,15 @@ function Invoke-EstimateAll {
             [int64]$fBytes = $cacheBytes + $danglingBytes
             [int64]$afBytes = $cacheBytes + $allUnusedBytes
             if ($afBytes -gt $fBytes) {
-                Set-Estimate "docker" "~$(Format-Size $fBytes) → ~$(Format-Size $afBytes)（使用 -a）"
+                Set-Estimate "docker" "~$(Format-Size $fBytes) → ~$(Format-Size $afBytes) with -a"
             } else {
                 Set-Estimate "docker" "~$(Format-Size $fBytes)"
             }
         } else {
-            Set-Estimate "docker" "n/a（守护进程未运行）"
+            Set-Estimate "docker" "n/a (守护进程未运行)"
         }
     } else {
-        Set-Estimate "docker" "n/a（未找到 docker）"
+        Set-Estimate "docker" "n/a (未找到 docker)"
     }
 
     # 应用容器
@@ -1015,7 +1012,7 @@ function Invoke-EstimateAll {
 
     Set-Estimate "total" ("~" + (Format-Size $total))
     $script:EstimatesReady = $true
-    Write-Item "✓" "Green" "估算值已就绪。~ 表示近似值。"
+    Write-Item "✓" "Green" "估算完成。~ 表示近似值。"
 }
 
 # --- 菜单显示 ---
@@ -1025,10 +1022,10 @@ function Show-Menu {
     $currentFreeSpace = Get-DiskSpace
 
     Show-Logo
-    Write-Host "  版本：v$SCRIPT_VERSION" -ForegroundColor DarkGray
-    Write-Item "✨" "Green" "可用空间：$currentFreeSpace"
+    Write-Host "  版本: v$SCRIPT_VERSION" -ForegroundColor DarkGray
+    Write-Item "✨" "Green" "可用空间: $currentFreeSpace"
     Write-Host ""
-    Write-SectionHeader "可用选项："
+    Write-SectionHeader "可用选项:"
     Write-Host " 0. 退出程序" -ForegroundColor Red
     Write-Host (" 1. 清理全部缓存" + (Get-Est 'total')) -ForegroundColor Green
     Write-Host "─── 开发工具 ───" -ForegroundColor DarkGray
@@ -1042,9 +1039,9 @@ function Show-Menu {
     Write-Host (" 8. 清理 PlatformIO 缓存" + (Get-Est 'platformio')) -ForegroundColor Green
     Write-Host (" 9. 清理 Cordova 临时文件" + (Get-Est 'cordova')) -ForegroundColor Green
     Write-Host ("10. 清理 Electron 缓存" + (Get-Est 'electron')) -ForegroundColor Green
-    Write-Host ("11. 清理 Docker（清理容器、悬空镜像及构建缓存；移除未使用已标记镜像前会询问）" + (Get-Est 'docker')) -ForegroundColor Green
+    Write-Host ("11. 清理 Docker（修剪容器、悬空镜像和构建缓存；在删除未使用的带标签镜像前会询问）" + (Get-Est 'docker')) -ForegroundColor Green
     Write-Host "─── AI CLI 工具 ───" -ForegroundColor DarkGray
-    Write-Host ("12. 清理旧版 Claude Code 版本（保留当前使用的版本）" + (Get-Est 'claudecode')) -ForegroundColor Green
+    Write-Host ("12. 清理旧版 Claude Code 版本（保留正在使用的版本）" + (Get-Est 'claudecode')) -ForegroundColor Green
     Write-Host "─── IDE 与编辑器 ───" -ForegroundColor DarkGray
     Write-Host ("13. 清理 IDE 缓存（JetBrains、VSCode）" + (Get-Est 'ide')) -ForegroundColor Green
     Write-Host "─── 系统 ───" -ForegroundColor DarkGray
@@ -1054,7 +1051,7 @@ function Show-Menu {
     Write-Host ""
     Write-Host "99. 估算可回收空间（只读，~ 表示近似值）" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "→ 请输入您的选择（0-16，或 99 进行估算）：" -NoNewline
+    Write-Host "→ 请输入您的选择 (0-16，或 99 进行估算): " -NoNewline
 }
 
 # --- 主循环 ---
@@ -1092,17 +1089,17 @@ function Start-MainLoop {
             }
             "2" {
                 Write-SectionHeader "执行 Visual Studio 清理"
-                Write-Host "当前 Visual Studio 搜索目录：$script:VsSearchDir" -ForegroundColor Cyan
+                Write-Host "当前 Visual Studio 搜索目录: $script:VsSearchDir" -ForegroundColor Cyan
                 Write-Host ""
-                Write-Host "请输入自定义目录路径，或按回车使用当前设置：" -ForegroundColor Yellow
+                Write-Host "请输入自定义目录路径，或按 Enter 使用当前设置:" -ForegroundColor Yellow
                 $customVsDir = Read-Host
 
                 if ($customVsDir -and (Test-Path $customVsDir)) {
-                    Write-Host "使用交互式覆盖：$customVsDir" -ForegroundColor Cyan
+                    Write-Host "使用交互式覆盖: $customVsDir" -ForegroundColor Cyan
                     Clear-VisualStudio -SearchDir $customVsDir
                 } elseif ($customVsDir) {
-                    Write-Host "目录不存在：$customVsDir" -ForegroundColor Red
-                    Write-Host "回退到：$script:VsSearchDir" -ForegroundColor Yellow
+                    Write-Host "目录不存在: $customVsDir" -ForegroundColor Red
+                    Write-Host "回退到: $script:VsSearchDir" -ForegroundColor Yellow
                     Clear-VisualStudio -SearchDir $script:VsSearchDir
                 } else {
                     Clear-VisualStudio -SearchDir $script:VsSearchDir
@@ -1118,17 +1115,17 @@ function Start-MainLoop {
             }
             "5" {
                 Write-SectionHeader "执行 Flutter 清理"
-                Write-Host "当前 Flutter 搜索目录：$script:FlutterSearchDir" -ForegroundColor Cyan
+                Write-Host "当前 Flutter 搜索目录: $script:FlutterSearchDir" -ForegroundColor Cyan
                 Write-Host ""
-                Write-Host "请输入自定义目录路径，或按回车使用当前设置：" -ForegroundColor Yellow
+                Write-Host "请输入自定义目录路径，或按 Enter 使用当前设置:" -ForegroundColor Yellow
                 $customFlutterDir = Read-Host
 
                 if ($customFlutterDir -and (Test-Path $customFlutterDir)) {
-                    Write-Host "使用交互式覆盖：$customFlutterDir" -ForegroundColor Cyan
+                    Write-Host "使用交互式覆盖: $customFlutterDir" -ForegroundColor Cyan
                     Clear-Flutter -SearchDir $customFlutterDir
                 } elseif ($customFlutterDir) {
-                    Write-Host "目录不存在：$customFlutterDir" -ForegroundColor Red
-                    Write-Host "回退到：$script:FlutterSearchDir" -ForegroundColor Yellow
+                    Write-Host "目录不存在: $customFlutterDir" -ForegroundColor Red
+                    Write-Host "回退到: $script:FlutterSearchDir" -ForegroundColor Yellow
                     Clear-Flutter -SearchDir $script:FlutterSearchDir
                 } else {
                     Clear-Flutter -SearchDir $script:FlutterSearchDir
@@ -1181,8 +1178,7 @@ function Start-MainLoop {
             "99" {
                 Write-SectionHeader "估算可回收空间"
                 Invoke-EstimateAll
-                # 只读操作：跳过清理前后的摘要，并重新绘制
-                # 带有刚计算出的估算值的菜单。
+                # 只读：跳过前后对比摘要并以 freshly computed 估算重新绘制菜单。
                 continue
             }
             default {
@@ -1196,103 +1192,103 @@ function Start-MainLoop {
 
         $finalFreeSpace = Get-DiskSpace
         Write-Host ""
-        Write-Host "✅ 清理任务已完成！" -ForegroundColor Green
-        Write-Host "清理前磁盘空间：$initialFreeSpace" -ForegroundColor Blue
-        Write-Host "清理后磁盘空间：$finalFreeSpace" -ForegroundColor Blue
+        Write-Host "✅ 清理任务完成!" -ForegroundColor Green
+        Write-Host "清理前磁盘空间: $initialFreeSpace" -ForegroundColor Blue
+        Write-Host "清理后磁盘空间:  $finalFreeSpace" -ForegroundColor Blue
         Write-Host ""
-        Write-Host "按回车返回菜单..." -NoNewline
+        Write-Host "按 Enter 返回菜单..." -NoNewline
         Read-Host
     }
 }
 
 # --- 入口点 ---
 
-# 处理 -Help 标志
+# 处理 -Help 参数
 if ($Help) {
     Write-Host @"
 Dev Cleanup Utility v$SCRIPT_VERSION
-Windows 开发环境的强大清理工具
+Windows 开发环境的强力清理工具
 
-用法：.\dev-cleaner.ps1 [选项]
+用法: .\dev-cleaner.ps1 [选项]
 
-选项：
+选项:
   -Help               显示此帮助信息
   -Version            显示版本信息
   -FlutterDir PATH    设置 Flutter 清理的自定义目录（默认：当前目录）
-                      示例：.\dev-cleaner.ps1 -FlutterDir "C:\Projects"
+                      示例: .\dev-cleaner.ps1 -FlutterDir "C:\Projects"
   -VsDir PATH         设置 Visual Studio 清理的自定义目录（默认：当前目录）
-                      示例：.\dev-cleaner.ps1 -VsDir "C:\Projects\DotNet"
+                      示例: .\dev-cleaner.ps1 -VsDir "C:\Projects\DotNet"
 
-交互式菜单：
-  选项 99 估算每个条目的可回收空间，并以 "(Estimate: <size>)" 的形式重绘菜单。
-  该操作为只读（不删除任何文件）。前缀 "~" 表示近似值；Flutter、PlatformIO
+交互式菜单:
+  选项 99 估算每个条目的可回收空间，并以 "(估算: <大小>)" 重新绘制菜单。
+  它是只读的（不删除任何内容）。前缀 "~" 表示近似值；Flutter、PlatformIO
   和 Visual Studio 的估算仅覆盖全局缓存。
 
-示例：
+示例:
   .\dev-cleaner.ps1                                    # 运行交互式菜单
   .\dev-cleaner.ps1 -FlutterDir "C:\Dev\Flutter"       # 自定义 Flutter 搜索目录
   .\dev-cleaner.ps1 -VsDir "C:\Dev\DotNet"             # 自定义 VS 搜索目录
   .\dev-cleaner.ps1 -FlutterDir "D:\Projects" -VsDir "D:\VS"  # 两个自定义目录
 
-环境变量：
+环境变量:
   `$env:FLUTTER_SEARCH_DIR = "C:\Projects\Flutter"
   `$env:VS_SEARCH_DIR = "C:\Projects\DotNet"
 
-仓库：$GITHUB_REPO
+仓库: $GITHUB_REPO
 "@
     exit 0
 }
 
-# 处理 -Version 标志
+# 处理 -Version 参数
 if ($Version) {
     Write-Host "Dev Cleaner v$SCRIPT_VERSION"
-    Write-Host "Windows 开发环境的强大清理工具"
-    Write-Host "仓库：$GITHUB_REPO"
+    Write-Host "Windows 开发环境的强力清理工具"
+    Write-Host "仓库: $GITHUB_REPO"
     exit 0
 }
 
 # 确定 Flutter 搜索目录（优先级：命令行 > 环境变量 > 默认）
 $script:FlutterSearchDir = "."
-$script:FlutterDirSource = "default"
+$script:FlutterDirSource = "默认"
 
 if ($env:FLUTTER_SEARCH_DIR) {
     $script:FlutterSearchDir = $env:FLUTTER_SEARCH_DIR
-    $script:FlutterDirSource = "environment"
+    $script:FlutterDirSource = "环境变量"
 }
 
 if ($FlutterDir) {
     $script:FlutterSearchDir = $FlutterDir
-    $script:FlutterDirSource = "command-line"
+    $script:FlutterDirSource = "命令行"
 }
 
 # 验证 Flutter 目录
 if ($script:FlutterSearchDir -ne "." -and -not (Test-Path $script:FlutterSearchDir)) {
-    Write-Host "警告：Flutter 搜索目录不存在：$script:FlutterSearchDir" -ForegroundColor Yellow
-    Write-Host "正在回退到当前目录。" -ForegroundColor Yellow
+    Write-Host "警告: Flutter 搜索目录不存在: $script:FlutterSearchDir" -ForegroundColor Yellow
+    Write-Host "回退到当前目录。" -ForegroundColor Yellow
     $script:FlutterSearchDir = "."
-    $script:FlutterDirSource = "default"
+    $script:FlutterDirSource = "默认"
 }
 
 # 确定 Visual Studio 搜索目录（优先级：命令行 > 环境变量 > 默认）
 $script:VsSearchDir = "."
-$script:VsDirSource = "default"
+$script:VsDirSource = "默认"
 
 if ($env:VS_SEARCH_DIR) {
     $script:VsSearchDir = $env:VS_SEARCH_DIR
-    $script:VsDirSource = "environment"
+    $script:VsDirSource = "环境变量"
 }
 
 if ($VsDir) {
     $script:VsSearchDir = $VsDir
-    $script:VsDirSource = "command-line"
+    $script:VsDirSource = "命令行"
 }
 
 # 验证 VS 目录
 if ($script:VsSearchDir -ne "." -and -not (Test-Path $script:VsSearchDir)) {
-    Write-Host "警告：Visual Studio 搜索目录不存在：$script:VsSearchDir" -ForegroundColor Yellow
-    Write-Host "正在回退到当前目录。" -ForegroundColor Yellow
+    Write-Host "警告: Visual Studio 搜索目录不存在: $script:VsSearchDir" -ForegroundColor Yellow
+    Write-Host "回退到当前目录。" -ForegroundColor Yellow
     $script:VsSearchDir = "."
-    $script:VsDirSource = "default"
+    $script:VsDirSource = "默认"
 }
 
 # 请求提权
@@ -1301,36 +1297,36 @@ Request-Elevation
 # 初始确认
 Clear-Host
 Write-Host "--- Dev Cleanup Utility ---" -ForegroundColor Red
-Write-Host "此脚本将从您的系统中永久删除缓存文件。"
-Write-Host "请在继续之前仔细查看选项。"
+Write-Host "此脚本将永久删除您系统上的缓存文件。"
+Write-Host "请仔细查看选项后再继续。"
 Write-Host ""
 
 # 报告搜索目录
 if ($script:FlutterSearchDir -ne ".") {
-    Write-Host "Flutter 搜索目录：$script:FlutterSearchDir" -ForegroundColor Cyan
+    Write-Host "Flutter 搜索目录: $script:FlutterSearchDir" -ForegroundColor Cyan
     switch ($script:FlutterDirSource) {
-        "environment" { Write-Host "  （通过 FLUTTER_SEARCH_DIR 环境变量设置）" -ForegroundColor DarkGray }
-        "command-line" { Write-Host "  （通过 -FlutterDir 命令行参数设置）" -ForegroundColor DarkGray }
+        "环境变量" { Write-Host "  （通过 FLUTTER_SEARCH_DIR 环境变量设置）" -ForegroundColor DarkGray }
+        "命令行" { Write-Host "  （通过 -FlutterDir 命令行参数设置）" -ForegroundColor DarkGray }
     }
     Write-Host ""
 } else {
-    Write-Host "Flutter 搜索目录：当前目录（默认）" -ForegroundColor DarkGray
+    Write-Host "Flutter 搜索目录: 当前目录（默认）" -ForegroundColor DarkGray
     Write-Host ""
 }
 
 if ($script:VsSearchDir -ne ".") {
-    Write-Host "Visual Studio 搜索目录：$script:VsSearchDir" -ForegroundColor Cyan
+    Write-Host "Visual Studio 搜索目录: $script:VsSearchDir" -ForegroundColor Cyan
     switch ($script:VsDirSource) {
-        "environment" { Write-Host "  （通过 VS_SEARCH_DIR 环境变量设置）" -ForegroundColor DarkGray }
-        "command-line" { Write-Host "  （通过 -VsDir 命令行参数设置）" -ForegroundColor DarkGray }
+        "环境变量" { Write-Host "  （通过 VS_SEARCH_DIR 环境变量设置）" -ForegroundColor DarkGray }
+        "命令行" { Write-Host "  （通过 -VsDir 命令行参数设置）" -ForegroundColor DarkGray }
     }
     Write-Host ""
 } else {
-    Write-Host "Visual Studio 搜索目录：当前目录（默认）" -ForegroundColor DarkGray
+    Write-Host "Visual Studio 搜索目录: 当前目录（默认）" -ForegroundColor DarkGray
     Write-Host ""
 }
 
-Write-Host "⚠️ 此操作对于已删除的文件是不可逆的。⚠️" -ForegroundColor Yellow
+Write-Host "⚠️ 此操作对已删除文件是不可逆的。⚠️" -ForegroundColor Yellow
 Write-Host "请在运行前关闭所有开发应用程序（Visual Studio、Android Studio、VSCode 等）。" -ForegroundColor Yellow
 Write-Host ""
 $initialConfirm = Read-Host "您确定要启动清理工具吗？(y/N)"
